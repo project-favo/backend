@@ -1,16 +1,15 @@
 package com.favo.backend.Domain.user;
 
 
-import jakarta.persistence.MappedSuperclass;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
 
-
+@Entity
+@DiscriminatorValue("GENERAL_USER")
 public class GeneralUser extends SystemUser {
 
-    // Ekstra alan yok
-    // Ekstra JPA annotasyonu yok
-    // TABLO OLUŞMAZ.
+    @Override
+    public void deactivate() {
+        setIsActive(false);
+    }
 }

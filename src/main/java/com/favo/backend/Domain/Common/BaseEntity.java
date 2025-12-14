@@ -6,11 +6,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 
 @MappedSuperclass
+@Setter
+@Getter
 public abstract class  BaseEntity  {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
