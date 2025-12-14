@@ -5,8 +5,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import lombok.Builder;
 
 import java.time.LocalDateTime;
+
 
 @MappedSuperclass
 public abstract class  BaseEntity  {
@@ -14,4 +16,6 @@ public abstract class  BaseEntity  {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     protected Long id;
     protected LocalDateTime createdAt;
+
+    protected Boolean isActive=true;
 }
