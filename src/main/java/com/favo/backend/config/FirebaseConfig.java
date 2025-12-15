@@ -3,16 +3,16 @@ package com.favo.backend.config;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
 import java.io.InputStream;
-
 @Configuration
 public class FirebaseConfig {
 
-    @PostConstruct
-    public void init(){
+    @Bean
+    public FirebaseApp firebaseApp() {
         try {
             InputStream serviceAccount =
                     getClass().getClassLoader()
@@ -27,8 +27,10 @@ public class FirebaseConfig {
                     .build();
 
             if (FirebaseApp.getApps().isEmpty()) {
-                FirebaseApp.initializeApp(options);
+                return FirebaseApp.initializeApp(options);
             }
+
+            return FirebaseApp.getInstance();
 
         } catch (Exception e) {
             throw new RuntimeException("Firebase initialization failed", e);

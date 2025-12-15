@@ -42,7 +42,17 @@ public class AuthService {
         SystemUser user = new GeneralUser();
         user.setFirebaseUid(info.getUid());
         user.setEmail(info.getEmail());
-        user.setUserName(info.getDisplayName());
+
+        String username = info.getDisplayName();
+        if (username == null || username.isBlank()) {
+            if (info.getEmail() != null && info.getEmail().contains("@")) {
+                username = info.getEmail().substring(0, info.getEmail().indexOf('@'));
+            } else {
+                username = "user_" + info.getUid().substring(0, Math.min(8, info.getUid().length()));
+            }
+        }
+
+        user.setUserName(username);
         user.setUserType(userType);
 
         return systemUserRepository.save(user);
