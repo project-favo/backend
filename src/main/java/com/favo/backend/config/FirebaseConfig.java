@@ -9,7 +9,7 @@ import javax.annotation.PostConstruct;
 import java.io.InputStream;
 
 @Configuration
-public class firebaseConfig {
+public class FirebaseConfig {
 
     @PostConstruct
     public void init(){

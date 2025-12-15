@@ -6,6 +6,7 @@ import com.favo.backend.Domain.user.UserResponseDto;
 import com.favo.backend.Service.Firebase.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,38 +17,28 @@ public class AuthController {
     private final AuthService authService;
 
     /**
-     * Firebase login
+     * 🔓 Firebase Login / Register
      * Authorization: Bearer <firebase-id-token>
+     * Bu endpoint SADECE ilk giriş içindir
      */
-
     @PostMapping("/login")
     public ResponseEntity<UserResponseDto> login(
-            @RequestHeader("Authorization") String authorizationHeader
-    ){
-
-        String token = extractToken(authorizationHeader);
-
+            @RequestHeader("Authorization") String authorization
+    ) {
+        String token = authorization.replace("Bearer ", "").trim();
         SystemUser user = authService.loginOrRegister(token);
         return ResponseEntity.ok(UserMapper.toDto(user));
     }
 
+    /**
+     * 🔐 Me endpoint
+     * SecurityContext içinden user gelir
+     * Token burada tekrar parse edilmez
+     */
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> me(
-            @RequestHeader("Authorization") String authorizationHeader
+            @AuthenticationPrincipal SystemUser user
     ) {
-
-        String token = extractToken(authorizationHeader);
-
-        SystemUser user = authService.loginOrRegister(token);
-
         return ResponseEntity.ok(UserMapper.toDto(user));
     }
-
-    private String extractToken(String header) {
-        if (header == null || !header.startsWith("Bearer ")) {
-            throw new RuntimeException("Invalid Authorization header");
-        }
-        return header.substring(7);
-    }
-
 }
