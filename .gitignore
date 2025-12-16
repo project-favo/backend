@@ -35,3 +35,8 @@ build/
 
 ###JSON TOKEN###
 src/main/resources/firebase/*.json
+
+### Environment Variables ###
+.env
+.env.local
+.env.*.local
