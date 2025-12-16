@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -16,6 +15,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -29,25 +29,29 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // CORS AKTİF
-                .cors(Customizer.withDefaults())
-
+                // CORS tamamen aktif - Flutter Web ve Railway dynamic domain desteği
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                
+                // CSRF devre dışı (stateless JWT kullanıyoruz)
                 .csrf(csrf -> csrf.disable())
+                
+                // Stateless session yönetimi (JWT için gerekli)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                
+                // Form login ve HTTP Basic devre dışı (JWT kullanıyoruz)
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
-
+                
+                // Endpoint yetkilendirme
                 .authorizeHttpRequests(auth -> auth
-                        // Preflight (Flutter Web için ŞART)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // Public endpointler
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
 
                         // Diğer her şey token ister
                         .anyRequest().authenticated()
                 )
-
+                
+                // Firebase JWT authentication filter'ı ekle
                 .addFilterBefore(
                         firebaseAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -55,28 +59,28 @@ public class SecurityConfig {
                 .build();
     }
 
-    // Flutter Web + Railway için DOĞRU CORS
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
+        
+        // Credentials izni (Authorization header için kritik)
         config.setAllowCredentials(true);
+        
 
-        //  Railway dynamic domain verdiği için PATTERN şart
-        config.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "https://*.railway.app"
-        ));
+        config.setAllowedOriginPatterns(List.of("*"));
 
-        config.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
-        ));
+        config.setAllowedMethods(List.of("*"));
 
         config.setAllowedHeaders(List.of("*"));
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
+        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+        
         return source;
     }
 }
