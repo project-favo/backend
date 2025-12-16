@@ -7,6 +7,7 @@ import com.favo.backend.Domain.user.Repository.UserTypeRepository;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
 import jakarta.transaction.Transactional;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,52 +17,61 @@ import org.springframework.stereotype.Service;
 public class AuthService {
     private final SystemUserRepository systemUserRepository;
     private final UserTypeRepository userTypeRepository;
-    private final FirebaseAuthService firebaseAuthService; // arkadaşın yazacak
+    private final FirebaseAuthService firebaseAuthService;
 
+    /**
+     * 🔓 Login only
+     * - Firebase token'ı verify eder
+     * - DB'de karşılığı olan AKTİF kullanıcıyı döner
+     * - Kullanıcı yoksa veya pasifse hata fırlatır
+     */
+    public SystemUser login(@NonNull String firebaseIdToken) {
+        FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
+        return systemUserRepository
+                .findByFirebaseUidAndIsActiveTrue(info.getUid())
+                .orElseThrow(() -> new RuntimeException("NO_SUCH_ACCOUNT"));
+    }
 
-    public SystemUser loginOrRegister(String firebaseIdToken) {
+    /**
+     * 🆕 Register
+     * - Firebase token'ı verify eder
+     * - Kullanıcı zaten kayıtlıysa hata fırlatır
+     * - UI'dan gelen username ile yeni user oluşturur
+     */
+    public SystemUser register(@NonNull String firebaseIdToken,
+                               @NonNull String userName) {
 
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
-        // 1️⃣ DB'de user var mı?
-        return systemUserRepository
-                .findByFirebaseUid(info.getUid())
-                .map(this::validateActive)
-                .orElseGet(() -> registerNewUser(info));
+        if (systemUserRepository.existsByFirebaseUid(info.getUid())) {
+            throw new RuntimeException("USER_ALREADY_EXISTS");
+        }
+
+        if (userName.isBlank()) {
+            throw new RuntimeException("USERNAME_REQUIRED");
+        }
+
+        if (systemUserRepository.existsByUserName(userName)) {
+            throw new RuntimeException("USERNAME_ALREADY_TAKEN");
+        }
+
+        return registerNewUser(info, userName);
     }
 
-    private SystemUser registerNewUser(FirebaseUserInfo info) {
-
+    private SystemUser registerNewUser(FirebaseUserInfo info, String userName) {
         // 2️⃣ Business role
         UserType userType = userTypeRepository
                 .findByName("ROLE_USER")
-                .orElseThrow(() -> new RuntimeException("Default UserType not found"));
+                .orElseThrow(() -> new RuntimeException("DEF UserType not found"));
 
         // 3️⃣ Polymorphic creation
         SystemUser user = new GeneralUser();
         user.setFirebaseUid(info.getUid());
         user.setEmail(info.getEmail());
-
-        String username = info.getDisplayName();
-        if (username == null || username.isBlank()) {
-            if (info.getEmail() != null && info.getEmail().contains("@")) {
-                username = info.getEmail().substring(0, info.getEmail().indexOf('@'));
-            } else {
-                username = "user_" + info.getUid().substring(0, Math.min(8, info.getUid().length()));
-            }
-        }
-
-        user.setUserName(username);
+        user.setUserName(userName);
         user.setUserType(userType);
 
         return systemUserRepository.save(user);
-    }
-
-    private SystemUser validateActive(SystemUser user) {
-        if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("User is deactivated");
-        }
-        return user;
     }
 }

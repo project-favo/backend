@@ -10,11 +10,13 @@ public interface SystemUserRepository
 
     Optional<SystemUser> findByFirebaseUid(String firebaseUid);
 
+    Optional<SystemUser> findByFirebaseUidAndIsActiveTrue(String firebaseUid);
+
     boolean existsByFirebaseUid(String firebaseUid);
 
     boolean existsByEmail(String email); // 🔥 DOĞRU
 
     Optional<SystemUser> findByEmail(String email);
 
-    Optional<SystemUser> findByFirebaseUidAndIsActiveTrue(String firebaseUid);
+    boolean existsByUserName(String userName);
 }

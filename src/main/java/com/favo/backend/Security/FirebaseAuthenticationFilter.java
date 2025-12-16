@@ -1,19 +1,14 @@
 package com.favo.backend.Security;
 
-import com.favo.backend.Domain.user.FirebaseUserInfo;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Firebase.AuthService;
-import com.favo.backend.Service.Firebase.FirebaseAuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -48,8 +43,8 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         String token = header.substring(7).trim();
 
         try {
-            // 🔥 burada loginOrRegister çalışır: verify + DB find/create
-            SystemUser user = authService.loginOrRegister(token);
+            // 🔥 burada sadece LOGIN çalışır: verify + DB'de aktif user bul
+            SystemUser user = authService.login(token);
 
             // authority'yi userType üzerinden bağla (ör: ROLE_USER / ROLE_ADMIN)
             String roleName = (user.getUserType() != null && user.getUserType().getName() != null)

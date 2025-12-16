@@ -17,16 +17,31 @@ public class AuthController {
     private final AuthService authService;
 
     /**
-     * 🔓 Firebase Login / Register
+     * 🔓 Firebase Login
      * Authorization: Bearer <firebase-id-token>
-     * Bu endpoint SADECE ilk giriş içindir
+     * Sadece daha önce register olmuş kullanıcılar için
      */
     @PostMapping("/login")
     public ResponseEntity<UserResponseDto> login(
             @RequestHeader("Authorization") String authorization
     ) {
         String token = authorization.replace("Bearer ", "").trim();
-        SystemUser user = authService.loginOrRegister(token);
+        SystemUser user = authService.login(token);
+        return ResponseEntity.ok(UserMapper.toDto(user));
+    }
+
+    /**
+     * 🆕 Firebase Register
+     * Authorization: Bearer <firebase-id-token>
+     * Body: { "userName": "..." }
+     */
+    @PostMapping("/register")
+    public ResponseEntity<UserResponseDto> register(
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam("userName") String userName
+    ) {
+        String token = authorization.replace("Bearer ", "").trim();
+        SystemUser user = authService.register(token, userName);
         return ResponseEntity.ok(UserMapper.toDto(user));
     }
 
