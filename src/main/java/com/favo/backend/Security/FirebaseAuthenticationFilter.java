@@ -27,8 +27,8 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // auth endpointleri serbest: burada token zorlamıyoruz
-        if (path.startsWith("/api/auth")) {
+        // auth ve health endpointleri serbest: burada token zorlamıyoruz
+        if (path.startsWith("/api/auth") || path.equals("/api/health")) {
             filterChain.doFilter(request, response);
             return;
         }
