@@ -25,6 +25,12 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        // CORS preflight (OPTIONS) isteklerinde Firebase doğrulaması yapmadan devam et
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
 
         // auth ve health endpointleri serbest: burada token zorlamıyoruz
