@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Spring Boot application properties
+      - SPRING_APPLICATION_NAME=backend
+      - SERVER_PORT=8080
+      # Database configuration (optional - defaults from application.properties if not set)
+      # Uncomment and modify if you want to override:
+      # - SPRING_DATASOURCE_URL=jdbc:mysql://nozomi.proxy.rlwy.net:31290/railway?useSSL=true&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      # - SPRING_DATASOURCE_USERNAME=root
+      # - SPRING_DATASOURCE_PASSWORD=bMVODKMpHNsgcXlQKxdZMWKMEJwcXDgL
+      # JPA settings
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQLDialect
+    restart: unless-stopped
+    # Healthcheck can be added if needed (requires curl/wget in container)
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+    networks:
+      - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
+
