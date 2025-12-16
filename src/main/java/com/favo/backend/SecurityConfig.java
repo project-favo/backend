@@ -67,10 +67,26 @@ public class SecurityConfig {
         // Credentials izni (Authorization header için kritik)
         config.setAllowCredentials(true);
         
+        // Railway dynamic domain ve Flutter Web için origin pattern'leri
+        // NOT: allowCredentials(true) ile "*" kullanılamaz, bu yüzden pattern'ler kullanıyoruz
+        // Environment variable'dan ekstra origin'ler okunabilir (virgülle ayrılmış)
+        String additionalOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        List<String> originPatterns = new java.util.ArrayList<>(Arrays.asList(
+                "http://localhost:*",
+                "https://*.railway.app",
+                "https://*.vercel.app",
+                "https://*.web.app",
+                "https://*.firebaseapp.com"
+        ));
+        
+        // Environment variable'dan gelen ekstra origin'leri ekle
+        if (additionalOrigins != null && !additionalOrigins.isBlank()) {
+            originPatterns.addAll(Arrays.asList(additionalOrigins.split(",")));
+        }
+        
+        config.setAllowedOriginPatterns(originPatterns);
 
-        config.setAllowedOriginPatterns(List.of("*"));
-
-        config.setAllowedMethods(List.of("*"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
         config.setAllowedHeaders(List.of("*"));
 
