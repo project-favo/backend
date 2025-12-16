@@ -3,7 +3,9 @@ package com.favo.backend.controller;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserMapper;
 import com.favo.backend.Domain.user.UserResponseDto;
+import com.favo.backend.Domain.user.UserUpdateRequestDto;
 import com.favo.backend.Service.Firebase.AuthService;
+import com.favo.backend.Service.User.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
 
     /**
      * 🔓 Firebase Login
@@ -55,5 +58,18 @@ public class AuthController {
             @AuthenticationPrincipal SystemUser user
     ) {
         return ResponseEntity.ok(UserMapper.toDto(user));
+    }
+
+    /**
+     * ✏️ Me update endpoint
+     * - Sadece authenticated user kendi profilini (şimdilik userName) günceller
+     */
+    @PutMapping("/me")
+    public ResponseEntity<UserResponseDto> updateMe(
+            @AuthenticationPrincipal SystemUser user,
+            @RequestBody UserUpdateRequestDto request
+    ) {
+        SystemUser updated = userService.updateUserName(user, request.getUserName());
+        return ResponseEntity.ok(UserMapper.toDto(updated));
     }
 }
