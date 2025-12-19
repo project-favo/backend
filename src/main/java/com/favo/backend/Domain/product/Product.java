@@ -1,9 +1,13 @@
 package com.favo.backend.Domain.product;
 
 import com.favo.backend.Domain.Common.BaseEntity;
+import com.favo.backend.Domain.review.Review;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "product")
@@ -27,4 +31,9 @@ public class Product extends BaseEntity {
             foreignKey = @ForeignKey(name = "fk_product_tag")
     )
     private Tag tag;
+
+    // Cascade.ALL kaldırıldı - soft delete için manuel kontrol yapılacak
+    // Sadece PERSIST ve MERGE kullanıyoruz (DELETE yok - fiziksel silme yapılmaz)
+    @OneToMany(mappedBy = "product", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    private List<Review> reviews = new ArrayList<>(); // Bir product'un birden fazla review'ı olabilir
 }

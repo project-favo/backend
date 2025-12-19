@@ -1,6 +1,7 @@
 package com.favo.backend.controller;
 
 import com.favo.backend.Domain.product.TagDto;
+import com.favo.backend.Domain.product.TagWithProductsDto;
 import com.favo.backend.Service.Product.TagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -38,8 +39,72 @@ public class TagController {
     }
 
     /**
-     * Belirli bir parent'ın child'larını getir
+     * 🌳 Root tag'leri getir (parent'ı olmayan tag'ler)
+     * GET /api/tags/roots
+     * 
+     * Frontend'de ilk adım için kullanılır - sadece root tag'ler döner
+     * Children olmadan, sadece tag bilgisi (id, name, categoryPath, parentId)
+     * Bu sayede frontend'de data yığılması önlenir
+     * 
+     * Örnek kullanım:
+     * 1. Kullanıcı kategori sayfasına girer
+     * 2. Bu endpoint çağrılır → sadece root tag'ler gelir (örn: "Electronics", "Books")
+     * 3. Kullanıcı bir tag'e tıklar → /api/tags/{id}/children endpoint'i çağrılır
+     * 
+     * Response: 200 OK + List<TagDto> (children olmadan)
+     */
+    @GetMapping("/roots")
+    public ResponseEntity<List<TagDto>> getRootTags() {
+        List<TagDto> rootTags = tagService.getRootTags();
+        return ResponseEntity.ok(rootTags);
+    }
+
+    /**
+     * 🔍 Belirli bir tag'in child'larını getir + eğer leaf tag ise product'ları da döndür
+     * GET /api/tags/{id}/children
+     * 
+     * Frontend'de adım adım tag navigation için kullanılır
+     * 
+     * Mantık:
+     * - Tag'in child'ı varsa → sadece child tag'leri döner (products boş)
+     * - Tag'in child'ı yoksa (leaf tag) → o tag'e ait product'ları döner (children boş)
+     * 
+     * Response formatı:
+     * {
+     *   "id": 123,
+     *   "name": "Iphone13",
+     *   "categoryPath": "Electronic.Telephone.MobilePhone.Iphone.Iphone13",
+     *   "parentId": 122,
+     *   "children": [],  // Eğer leaf tag ise boş
+     *   "products": [   // Eğer leaf tag ise dolu, değilse boş
+     *     { "id": 1, "name": "iPhone 13 Pro", ... },
+     *     { "id": 2, "name": "iPhone 13", ... }
+     *   ],
+     *   "isLeaf": true  // Bu tag leaf mi?
+     * }
+     * 
+     * Frontend akışı:
+     * 1. GET /api/tags/roots → Root tag'leri göster
+     * 2. Kullanıcı "Electronics" tag'ine tıklar → GET /api/tags/1/children
+     * 3. Eğer child varsa → child tag'leri göster (örn: "Telephone", "Computers")
+     * 4. Kullanıcı "Telephone" → "MobilePhone" → "Iphone" → "Iphone13" derinliğine gider
+     * 5. "Iphone13" leaf tag ise → products dolu gelir, product listesi gösterilir
+     * 
+     * Response: 200 OK + TagWithProductsDto
+     * Error: 404 Not Found - Tag bulunamazsa
+     */
+    @GetMapping("/{id}/children")
+    public ResponseEntity<TagWithProductsDto> getTagChildrenWithProducts(@PathVariable Long id) {
+        TagWithProductsDto result = tagService.getTagChildrenWithProducts(id);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Belirli bir parent'ın child'larını getir (eski endpoint - backward compatibility için)
      * GET /api/tags/parent/{parentId}/children
+     * 
+     * ⚠️ YENİ ENDPOINT KULLAN: GET /api/tags/{id}/children (yukarıdaki)
+     * Bu endpoint sadece child tag'leri döner, product bilgisi yok
      */
     @GetMapping("/parent/{parentId}/children")
     public ResponseEntity<List<TagDto>> getChildrenByParent(@PathVariable Long parentId) {

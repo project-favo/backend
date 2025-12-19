@@ -2,6 +2,8 @@ package com.favo.backend.Domain.product.Repository;
 
 import com.favo.backend.Domain.product.Tag;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,5 +16,17 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     List<Tag> findByParentIsNull(); // Root tag'ler (parent'ı olmayanlar)
     
     List<Tag> findByParentIsNullAndIsActiveTrue(); // Aktif root tag'ler
+    
+    // Child'ı olmayan tag'leri bul (leaf node'lar - sadece bunlara product bağlanabilir)
+    @Query("SELECT t FROM Tag t WHERE t.isActive = true AND NOT EXISTS (SELECT 1 FROM Tag c WHERE c.parent = t AND c.isActive = true)")
+    List<Tag> findLeafTags(); // Child'ı olmayan aktif tag'ler
+    
+    /**
+     * Tag'i aktif child'ları ile birlikte getir (N+1 query problemini önlemek için)
+     * LEFT JOIN FETCH ile child'lar tek query'de çekilir
+     * DISTINCT kullanarak duplicate sonuçları önler
+     */
+    @Query("SELECT DISTINCT t FROM Tag t LEFT JOIN FETCH t.children c WHERE t.id = :tagId AND t.isActive = true AND (c.isActive = true OR c IS NULL)")
+    Optional<Tag> findByIdWithActiveChildren(@Param("tagId") Long tagId);
 }
 

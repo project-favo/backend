@@ -1,9 +1,9 @@
 package com.favo.backend.Service.Product;
 
-import com.favo.backend.Domain.product.Tag;
-import com.favo.backend.Domain.product.TagDto;
+import com.favo.backend.Domain.product.*;
 import com.favo.backend.Domain.product.External.TrendyolCategory;
 import com.favo.backend.Domain.product.Repository.TagRepository;
+import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Service.Product.External.TrendyolCategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +27,7 @@ public class TagService {
 
     private final TagRepository tagRepository;
     private final TrendyolCategoryService trendyolCategoryService;
+    private final ProductRepository productRepository;
 
     /**
      * Yeni tag oluştur (hiyerarşik yapı ile)
@@ -83,6 +84,75 @@ public class TagService {
                 .filter(tag -> Boolean.TRUE.equals(tag.getIsActive()))
                 .map(this::toDto)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Root tag'leri getir (parent'ı olmayan tag'ler)
+     * Frontend'de ilk adım için kullanılır - sadece root tag'ler döner, children yok
+     * Bu sayede frontend'de data yığılması önlenir
+     */
+    public List<TagDto> getRootTags() {
+        List<Tag> rootTags = tagRepository.findByParentIsNullAndIsActiveTrue();
+        return rootTags.stream()
+                .map(this::toDto) // Children olmadan, sadece tag bilgisi
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Belirli bir tag'in child'larını getir + eğer leaf tag ise product'ları da döndür
+     * Frontend'de adım adım tag navigation için kullanılır
+     * 
+     * Mantık:
+     * - Tag'in child'ı varsa → sadece child tag'leri döner
+     * - Tag'in child'ı yoksa (leaf tag) → o tag'e ait product'ları döner
+     * 
+     * Bu sayede frontend:
+     * 1. Root tag'leri gösterir
+     * 2. Kullanıcı bir tag'e tıklar → bu endpoint çağrılır
+     * 3. Eğer child varsa → child tag'leri gösterir (devam eder)
+     * 4. Eğer leaf tag ise → product'ları gösterir (son nokta)
+     * 
+     * ⚡ PERFORMANS İYİLEŞTİRMESİ:
+     * - fetch join kullanarak N+1 query problemini önler
+     * - Tag children tek query'de çekilir
+     * - Product tag ve tag.parent tek query'de çekilir
+     */
+    public TagWithProductsDto getTagChildrenWithProducts(Long tagId) {
+        // Fetch join ile tag'i aktif child'ları ile birlikte getir (N+1 query önlenir)
+        Tag tag = tagRepository.findByIdWithActiveChildren(tagId)
+                .orElseThrow(() -> new RuntimeException("Tag not found with id: " + tagId));
+
+        // Tag'in aktif child'larını kontrol et (zaten fetch edilmiş, lazy loading yok)
+        List<Tag> activeChildren = tag.getChildren().stream()
+                .filter(child -> Boolean.TRUE.equals(child.getIsActive()))
+                .collect(Collectors.toList());
+
+        boolean isLeaf = activeChildren.isEmpty();
+
+        // Child tag'leri DTO'ya çevir (children olmadan, sadece kendileri)
+        List<TagDto> childDtos = activeChildren.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+
+        // Eğer leaf tag ise, bu tag'e ait product'ları getir
+        // Fetch join ile tag ve tag.parent bilgileri de çekilir (N+1 query önlenir)
+        List<ProductResponseDto> products = new ArrayList<>();
+        if (isLeaf) {
+            products = productRepository.findByTagIdWithTagAndParent(tagId)
+                    .stream()
+                    .map(ProductMapper::toDto)
+                    .collect(Collectors.toList());
+        }
+
+        return new TagWithProductsDto(
+                tag.getId(),
+                tag.getName(),
+                tag.getCategoryPath(),
+                tag.getParent() != null ? tag.getParent().getId() : null,
+                childDtos,
+                products,
+                isLeaf
+        );
     }
 
     /**
