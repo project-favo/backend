@@ -17,7 +17,7 @@ public class TagController {
     private final TagService tagService;
 
     /**
-     * Yeni tag oluştur (hiyerarşik yapı ile)
+     * Yeni tag oluştur
      * POST /api/tags
      * Body: { "name": "Iphone13", "parentId": 5 } veya { "name": "Electronics" } (root tag için)
      */
@@ -75,6 +75,29 @@ public class TagController {
     public ResponseEntity<TagDto> getTagById(@PathVariable Long id) {
         TagDto tag = tagService.getTagById(id);
         return ResponseEntity.ok(tag);
+    }
+
+    /**
+     * Trendyol API'sinden kategorileri import et
+     * POST /api/tags/import/trendyol
+     * Trendyol API'sinden tüm kategorileri çekip Tag'lere dönüştürür
+     */
+    @PostMapping("/import/trendyol")
+    public ResponseEntity<ImportResponse> importTrendyolCategories() {
+        int importedCount = tagService.importTrendyolCategories();
+        return ResponseEntity.ok(new ImportResponse(importedCount, "Successfully imported " + importedCount + " categories from Trendyol"));
+    }
+
+    /**
+     * Import response DTO
+     */
+    @lombok.Getter
+    @lombok.Setter
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    static class ImportResponse {
+        private int importedCount;
+        private String message;
     }
 
     /**

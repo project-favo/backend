@@ -2,22 +2,31 @@ package com.favo.backend.Service.Product;
 
 import com.favo.backend.Domain.product.Tag;
 import com.favo.backend.Domain.product.TagDto;
+import com.favo.backend.Domain.product.External.TrendyolCategory;
 import com.favo.backend.Domain.product.Repository.TagRepository;
-import jakarta.transaction.Transactional;
+import com.favo.backend.Service.Product.External.TrendyolCategoryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TagService {
 
     private final TagRepository tagRepository;
+    private final TrendyolCategoryService trendyolCategoryService;
 
     /**
      * Yeni tag oluştur (hiyerarşik yapı ile)
@@ -136,5 +145,116 @@ public class TagService {
         dto.setChildren(childDtos);
         return dto;
     }
+
+    /**
+     * Trendyol API'sinden kategorileri çekip Tag'lere dönüştürür ve veritabanına kaydeder
+     * Recursive olarak işler: önce root kategorileri, sonra child'ları
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public int importTrendyolCategories() {
+        log.info("Starting import of Trendyol categories...");
+        
+        List<TrendyolCategory> trendyolCategories = trendyolCategoryService.fetchAllCategories();
+        
+        // Trendyol ID -> Tag mapping (parent ilişkilerini kurmak için)
+        Map<Integer, Tag> trendyolIdToTagMap = new HashMap<>();
+        
+        // Mevcut categoryPath'leri önce yükle (duplicate kontrolü için)
+        Set<String> existingPaths = tagRepository.findAll().stream()
+                .map(Tag::getCategoryPath)
+                .collect(Collectors.toSet());
+        
+        int[] importedCount = {0}; // Array kullanarak final olmayan değişken sorununu çözüyoruz
+        
+        log.info("Found {} root categories to import from Trendyol", trendyolCategories.size());
+        
+        // Recursive olarak kategorileri işle (önce parent, sonra child)
+        for (TrendyolCategory rootCategory : trendyolCategories) {
+            processCategoryRecursive(rootCategory, null, trendyolIdToTagMap, existingPaths, importedCount);
+            
+            // Her 100 kategori import edildiğinde progress log
+            if (importedCount[0] % 100 == 0 && importedCount[0] > 0) {
+                log.info("Progress: {} categories imported so far...", importedCount[0]);
+            }
+        }
+        
+        log.info("Successfully imported {} categories from Trendyol", importedCount[0]);
+        return importedCount[0];
+    }
+
+    /**
+     * Kategoriyi recursive olarak işler (önce kendisini, sonra child'larını)
+     */
+    private void processCategoryRecursive(TrendyolCategory trendyolCategory, Tag parentTag, 
+                                         Map<Integer, Tag> trendyolIdToTagMap, Set<String> existingPaths, 
+                                         int[] importedCount) {
+        try {
+            // Önce bu kategoriyi oluştur
+            Tag tag = convertTrendyolCategoryToTag(trendyolCategory, parentTag, trendyolIdToTagMap, existingPaths);
+            
+            if (tag != null) {
+                trendyolIdToTagMap.put(trendyolCategory.getId(), tag);
+                existingPaths.add(tag.getCategoryPath()); // Yeni eklenen path'i de ekle
+                importedCount[0]++;
+                
+                // Sonra child'larını recursive olarak işle
+                if (trendyolCategory.getSubCategories() != null && !trendyolCategory.getSubCategories().isEmpty()) {
+                    for (TrendyolCategory subCategory : trendyolCategory.getSubCategories()) {
+                        processCategoryRecursive(subCategory, tag, trendyolIdToTagMap, existingPaths, importedCount);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to import category {} ({}): {}", 
+                    trendyolCategory.getId(), 
+                    trendyolCategory.getName(), 
+                    e.getMessage());
+        }
+    }
+
+    /**
+     * Trendyol kategorisini Tag'e dönüştürür
+     * Her kategori kendi transaction'ında kaydediliyor (connection timeout'u önlemek için)
+     */
+    private Tag convertTrendyolCategoryToTag(TrendyolCategory trendyolCategory, Tag parentTag, 
+                                             Map<Integer, Tag> trendyolIdToTagMap, Set<String> existingPaths) {
+        // CategoryPath oluştur
+        String categoryPath;
+        if (parentTag == null) {
+            categoryPath = trendyolCategory.getName();
+        } else {
+            categoryPath = parentTag.getCategoryPath() + "." + trendyolCategory.getName();
+        }
+        
+        // Eğer bu categoryPath zaten varsa, atla (in-memory duplicate kontrolü)
+        if (existingPaths.contains(categoryPath)) {
+            log.debug("Tag already exists with categoryPath: {}, skipping", categoryPath);
+            return null;
+        }
+        
+        // Tag oluştur - her kategori kendi transaction'ında
+        return saveTagInNewTransaction(trendyolCategory.getName(), categoryPath, parentTag);
+    }
+    
+    /**
+     * Tag'i yeni bir transaction'da kaydeder (connection timeout'u önlemek için)
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    private Tag saveTagInNewTransaction(String name, String categoryPath, Tag parentTag) {
+        // Son bir kez duplicate kontrolü (race condition için)
+        if (tagRepository.findByCategoryPath(categoryPath).isPresent()) {
+            return null;
+        }
+        
+        Tag tag = new Tag();
+        tag.setName(name);
+        tag.setCategoryPath(categoryPath);
+        tag.setParent(parentTag);
+        tag.setCreatedAt(LocalDateTime.now());
+        tag.setIsActive(true);
+        
+        return tagRepository.save(tag);
+    }
 }
+
 

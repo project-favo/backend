@@ -16,14 +16,27 @@ public class FirebaseConfig {
     @Bean
     public FirebaseApp firebaseApp() {
         try {
+            InputStream serviceAccount;
+            
+            // Önce environment variable'dan oku
             String base64Credentials = System.getenv("FIREBASE_SERVICE_ACCOUNT_BASE64");
             
-            if (base64Credentials == null || base64Credentials.isBlank()) {
-                throw new RuntimeException("FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is required but not set");
+            if (base64Credentials != null && !base64Credentials.isBlank()) {
+                // Environment variable'dan oku
+                byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);
+                serviceAccount = new ByteArrayInputStream(decodedBytes);
+            } else {
+                // Environment variable yoksa dosyadan oku
+                serviceAccount = getClass().getClassLoader()
+                        .getResourceAsStream("firebase/serviceAccountKey.json");
+                
+                if (serviceAccount == null) {
+                    throw new RuntimeException(
+                            "Firebase credentials not found. " +
+                            "Either set FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable " +
+                            "or place serviceAccountKey.json in src/main/resources/firebase/");
+                }
             }
-
-            byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);
-            InputStream serviceAccount = new ByteArrayInputStream(decodedBytes);
 
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -36,7 +49,7 @@ public class FirebaseConfig {
             return FirebaseApp.getInstance();
 
         } catch (Exception e) {
-            throw new RuntimeException("Firebase initialization failed", e);
+            throw new RuntimeException("Firebase initialization failed: " + e.getMessage(), e);
         }
     }
 }

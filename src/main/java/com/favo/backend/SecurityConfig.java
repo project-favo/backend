@@ -47,7 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
 
-                        // Diğer her şey token ister
+                        // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)
                         .anyRequest().authenticated()
                 )
                 
