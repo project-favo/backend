@@ -45,7 +45,10 @@ public class SecurityConfig {
                 // Endpoint yetkilendirme
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                        // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/health").permitAll()
+                        // Me endpoint'leri token gerektirir (authenticated user için)
+                        .requestMatchers("/api/auth/me").authenticated()
 
                         // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)
                         .anyRequest().authenticated()
