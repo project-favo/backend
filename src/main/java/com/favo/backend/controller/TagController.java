@@ -113,6 +113,27 @@ public class TagController {
     }
 
     /**
+     * 🔍 Tag ismine göre arama yapar (authentication gerektirmez)
+     * GET /api/tags/search?name=iPhone
+     * 
+     * Tag ismi veya categoryPath'te arama yapar (case-insensitive)
+     * Sadece aktif tag'leri döner
+     * 
+     * Örnek kullanım:
+     * - GET /api/tags/search?name=iPhone → "iPhone" içeren tüm tag'leri bulur
+     * - GET /api/tags/search?name=Telefon → "Telefon" içeren tüm tag'leri bulur
+     * - GET /api/tags/search?name=Elektronik → "Elektronik" içeren tüm tag'leri bulur
+     * 
+     * Response: 200 OK + List<TagDto>
+     * Her TagDto içinde: id, name, categoryPath, parentId (children yok, sadece temel bilgiler)
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<TagDto>> searchTags(@RequestParam(required = false, defaultValue = "") String name) {
+        List<TagDto> tags = tagService.searchTagsByName(name);
+        return ResponseEntity.ok(tags);
+    }
+
+    /**
      * Category path'e göre tag getir (tree ile birlikte)
      * GET /api/tags/path?categoryPath=Electronic.Telephone.MobilePhone
      */

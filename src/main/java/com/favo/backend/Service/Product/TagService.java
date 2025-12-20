@@ -185,6 +185,25 @@ public class TagService {
     }
 
     /**
+     * Tag ismine göre arama yapar (case-insensitive)
+     * Hem name hem de categoryPath'te arama yapar
+     * Sadece aktif tag'leri döner
+     * 
+     * @param searchTerm Arama terimi (örn: "iPhone", "Telefon", "Elektronik")
+     * @return Bulunan tag'lerin listesi (basit DTO formatında - sadece id, name, categoryPath, parentId)
+     */
+    public List<TagDto> searchTagsByName(String searchTerm) {
+        if (searchTerm == null || searchTerm.isBlank()) {
+            return getAllTags(); // Boş arama → tüm tag'leri döndür
+        }
+        
+        List<Tag> tags = tagRepository.searchTagsByName(searchTerm.trim());
+        return tags.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Tag'i DTO'ya çevir (children olmadan)
      */
     private TagDto toDto(Tag tag) {

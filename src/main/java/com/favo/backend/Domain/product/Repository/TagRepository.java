@@ -28,5 +28,13 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
      */
     @Query("SELECT DISTINCT t FROM Tag t LEFT JOIN FETCH t.children c WHERE t.id = :tagId AND t.isActive = true AND (c.isActive = true OR c IS NULL)")
     Optional<Tag> findByIdWithActiveChildren(@Param("tagId") Long tagId);
+    
+    /**
+     * Tag ismine göre arama yapar (case-insensitive, LIKE query)
+     * Hem name hem de categoryPath'te arama yapar
+     * Sadece aktif tag'leri döner
+     */
+    @Query("SELECT t FROM Tag t WHERE t.isActive = true AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.categoryPath) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    List<Tag> searchTagsByName(@Param("searchTerm") String searchTerm);
 }
 
