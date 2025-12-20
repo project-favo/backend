@@ -6,6 +6,9 @@ public class UserMapper {
                 user.getId(),
                 user.getEmail(),
                 user.getUserName(),
+                user.getName(),
+                user.getSurname(),
+                user.getBirthdate(),
                 user.getUserType().getName(),
                 Boolean.TRUE.equals(user.getIsActive())
         );

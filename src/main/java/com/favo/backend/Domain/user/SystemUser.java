@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 
 //System_user tablosnun gerekli anotasyonlar ile detaylanmış hali
 
@@ -28,6 +30,15 @@ public abstract class SystemUser extends BaseEntity {
 
     @Column(name = "username", nullable = false, length = 50)
     private String userName;
+
+    @Column(name = "name", length = 100)
+    private String name;
+
+    @Column(name = "surname", length = 100)
+    private String surname;
+
+    @Column(name = "birthdate")
+    private LocalDate birthdate;
 
     // isActive -> BaseEntity'den geliyor
 
