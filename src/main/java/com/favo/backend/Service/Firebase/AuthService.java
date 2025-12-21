@@ -6,10 +6,10 @@ import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.Repository.UserTypeRepository;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
-import jakarta.transaction.Transactional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -22,12 +22,17 @@ public class AuthService {
     /**
      * 🔓 Login only
      * - Firebase token'ı verify eder
-     * - DB'de karşılığı olan AKTİF kullanıcıyı döner
+     * - DB'de karşılığı olan AKTİF kullanıcıyı döner (UserType ile birlikte)
      * - Kullanıcı yoksa veya pasifse hata fırlatır
+     * 
+     * @Transactional(readOnly = true) ile session'ı açık tutar ve UserType'ı eager load eder
+     * FirebaseAuthenticationFilter içinde user.getUserType().getName() çağrıldığı için gerekli
      */
+    @Transactional(readOnly = true)
     public SystemUser login(@NonNull String firebaseIdToken) {
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
+        // UserType fetch join ile yüklenir (SystemUserRepository'de tanımlı)
         return systemUserRepository
                 .findByFirebaseUidAndIsActiveTrue(info.getUid())
                 .orElseThrow(() -> new RuntimeException("NO_SUCH_ACCOUNT"));

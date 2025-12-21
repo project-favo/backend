@@ -2,6 +2,8 @@ package com.favo.backend.Domain.user.Repository;
 
 import com.favo.backend.Domain.user.SystemUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -10,7 +12,15 @@ public interface SystemUserRepository
 
     Optional<SystemUser> findByFirebaseUid(String firebaseUid);
 
-    Optional<SystemUser> findByFirebaseUidAndIsActiveTrue(String firebaseUid);
+    /**
+     * Firebase UID'ye göre aktif kullanıcıyı UserType ile birlikte getirir (N+1 query problemini önlemek için)
+     * LEFT JOIN FETCH ile UserType tek query'de çekilir
+     * 
+     * FirebaseAuthenticationFilter içinde user.getUserType().getName() çağrıldığı için
+     * UserType'ın eager load edilmesi gerekiyor
+     */
+    @Query("SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.firebaseUid = :firebaseUid AND u.isActive = true")
+    Optional<SystemUser> findByFirebaseUidAndIsActiveTrue(@Param("firebaseUid") String firebaseUid);
 
     boolean existsByFirebaseUid(String firebaseUid);
 

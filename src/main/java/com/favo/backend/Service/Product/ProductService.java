@@ -31,6 +31,11 @@ public class ProductService {
         Tag tag = tagRepository.findById(request.getTagId())
                 .orElseThrow(() -> new RuntimeException("Tag not found with id: " + request.getTagId()));
 
+        // Tag'in aktif olup olmadığını kontrol et
+        if (!Boolean.TRUE.equals(tag.getIsActive())) {
+            throw new RuntimeException("Cannot assign product to inactive tag. Tag id: " + request.getTagId());
+        }
+
         // Leaf tag kontrolü: Tag'in child'ı olmamalı (sadece en son seviye tag'lere product bağlanabilir)
         if (!tag.getChildren().isEmpty()) {
             // Aktif child var mı kontrol et
