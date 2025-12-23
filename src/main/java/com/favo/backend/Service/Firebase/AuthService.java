@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -45,7 +47,10 @@ public class AuthService {
      * - UI'dan gelen username ile yeni user oluşturur
      */
     public SystemUser register(@NonNull String firebaseIdToken,
-                               @NonNull String userName) {
+                               @NonNull String userName,
+                               @NonNull String name,
+                               @NonNull String surname,
+                               @NonNull LocalDate birthdate) {
 
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
