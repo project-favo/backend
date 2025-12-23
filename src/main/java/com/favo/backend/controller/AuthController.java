@@ -1,15 +1,14 @@
 package com.favo.backend.controller;
 
-import com.favo.backend.Domain.user.SystemUser;
-import com.favo.backend.Domain.user.UserMapper;
-import com.favo.backend.Domain.user.UserResponseDto;
-import com.favo.backend.Domain.user.UserUpdateRequestDto;
+import com.favo.backend.Domain.user.*;
 import com.favo.backend.Service.Firebase.AuthService;
 import com.favo.backend.Service.User.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -36,17 +35,24 @@ public class AuthController {
     /**
      * 🆕 Firebase Register
      * Authorization: Bearer <firebase-id-token>
-     * Body: { "userName": "..." }
+     * Body: { "userName": "...", "name": "...", "surname": "...", "birthdate": "YYYY-MM-DD" }
      */
     @PostMapping("/register")
     public ResponseEntity<UserResponseDto> register(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam("userName") String userName
+            @RequestBody RegisterRequestDto request
     ) {
         String token = authorization.replace("Bearer ", "").trim();
-        SystemUser user = authService.register(token, userName);
+        SystemUser user = authService.register(
+                token,
+                request.getUserName(),
+                request.getName(),
+                request.getSurname(),
+                request.getBirthdate()
+        );
         return ResponseEntity.ok(UserMapper.toDto(user));
     }
+
 
     /**
      * 🔐 Me endpoint
