@@ -1,0 +1,136 @@
+package com.favo.backend.controller;
+
+import com.favo.backend.Domain.product.ProductRequestDto;
+import com.favo.backend.Domain.product.ProductResponseDto;
+import com.favo.backend.Service.Product.ProductService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * Product Controller
+ * Product CRUD işlemleri için endpoint'ler
+ * 
+ * ÖNEMLİ: Product sadece leaf tag'lere (child'ı olmayan tag'lere) bağlanabilir
+ * Örnek: "Electronic.Telephone.MobilePhone.Iphone.Iphone13" → ✅ Product bağlanabilir
+ *        "Electronic.Telephone" → ❌ Product bağlanamaz (child'ı var)
+ */
+@RestController
+@RequestMapping("/api/products")
+@RequiredArgsConstructor
+public class ProductController {
+
+    private final ProductService productService;
+
+    /**
+     * 🆕 Yeni product oluştur
+     * POST /api/products
+     * 
+     * Body: {
+     *   "name": "iPhone 13 Pro",
+     *   "description": "Apple iPhone 13 Pro 128GB",
+     *   "imageURL": "https://...",
+     *   "tagId": 123  // Leaf tag ID (child'ı olmayan tag)
+     * }
+     * 
+     * Response: 201 Created + ProductResponseDto
+     * Error: 400 Bad Request - Tag leaf tag değilse veya tag bulunamazsa
+     */
+    @PostMapping
+    public ResponseEntity<ProductResponseDto> createProduct(@RequestBody ProductRequestDto request) {
+        ProductResponseDto created = productService.createProduct(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * 📋 Tüm aktif product'ları getir
+     * GET /api/products
+     * 
+     * Response: 200 OK + List<ProductResponseDto>
+     */
+    @GetMapping
+    public ResponseEntity<List<ProductResponseDto>> getAllProducts() {
+        List<ProductResponseDto> products = productService.getAllActiveProducts();
+        return ResponseEntity.ok(products);
+    }
+
+    /**
+     * 🔍 ID'ye göre product getir
+     * GET /api/products/{id}
+     * 
+     * Response: 200 OK + ProductResponseDto
+     * Error: 404 Not Found - Product bulunamazsa veya pasifse
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductResponseDto> getProductById(@PathVariable Long id) {
+        ProductResponseDto product = productService.getProductById(id);
+        return ResponseEntity.ok(product);
+    }
+
+    /**
+     * 🏷️ Tag'e göre product'ları getir
+     * GET /api/products/tag/{tagId}
+     * 
+     * Belirli bir tag'e ait tüm aktif product'ları döner
+     * 
+     * Response: 200 OK + List<ProductResponseDto>
+     */
+    @GetMapping("/tag/{tagId}")
+    public ResponseEntity<List<ProductResponseDto>> getProductsByTag(@PathVariable Long tagId) {
+        List<ProductResponseDto> products = productService.getProductsByTagId(tagId);
+        return ResponseEntity.ok(products);
+    }
+
+    /**
+     * ✏️ Product güncelle
+     * PUT /api/products/{id}
+     * 
+     * ⚠️ ŞU AN PASİF: Admin paneli aktifleştirildiğinde kullanılacak
+     * 
+     * Partial update: Sadece gönderilen field'lar güncellenir
+     * 
+     * Body: {
+     *   "name": "Updated Name",  // Opsiyonel
+     *   "description": "...",     // Opsiyonel
+     *   "imageURL": "...",        // Opsiyonel
+     *   "tagId": 456              // Opsiyonel (leaf tag olmalı)
+     * }
+     * 
+     * Response: 200 OK + ProductResponseDto
+     * Error: 404 Not Found - Product bulunamazsa
+     * Error: 400 Bad Request - Tag leaf tag değilse
+     */
+    /*
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductResponseDto> updateProduct(
+            @PathVariable Long id,
+            @RequestBody ProductRequestDto request
+    ) {
+        ProductResponseDto updated = productService.updateProduct(id, request);
+        return ResponseEntity.ok(updated);
+    }
+    */
+
+    /**
+     * 🗑️ Product'ı sil (soft delete - isActive = false)
+     * DELETE /api/products/{id}
+     * 
+     * ⚠️ ŞU AN PASİF: Admin paneli aktifleştirildiğinde kullanılacak
+     * 
+     * Product fiziksel olarak silinmez, sadece isActive = false yapılır
+     * 
+     * Response: 204 No Content
+     * Error: 404 Not Found - Product bulunamazsa veya zaten pasifse
+     */
+    /*
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+    */
+}
+

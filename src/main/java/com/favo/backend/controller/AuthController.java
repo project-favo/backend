@@ -62,14 +62,18 @@ public class AuthController {
 
     /**
      * ✏️ Me update endpoint
-     * - Sadece authenticated user kendi profilini (şimdilik userName) günceller
+     * - Sadece authenticated user kendi profilini günceller
+     * - Güncellenebilir alanlar: userName, name, surname, birthdate
+     * - Tüm alanlar opsiyonel (sadece gönderilen alanlar güncellenir)
+     * - userName unique olmalı ve boş olamaz
+     * - birthdate geçmiş bir tarih olmalı
      */
     @PutMapping("/me")
     public ResponseEntity<UserResponseDto> updateMe(
             @AuthenticationPrincipal SystemUser user,
             @RequestBody UserUpdateRequestDto request
     ) {
-        SystemUser updated = userService.updateUserName(user, request.getUserName());
+        SystemUser updated = userService.updateUserProfile(user, request);
         return ResponseEntity.ok(UserMapper.toDto(updated));
     }
 }
