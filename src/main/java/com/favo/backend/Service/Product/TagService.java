@@ -344,6 +344,18 @@ public class TagService {
         
         return tagRepository.save(tag);
     }
+
+    /**
+     * Tag'i soft delete yap (isActive = false)
+     * Geçici metod - tag temizleme için
+     */
+    public void deleteTag(Long id) {
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Tag not found with id: " + id));
+        
+        tag.setIsActive(false);
+        tagRepository.save(tag);
+    }
 }
 
 

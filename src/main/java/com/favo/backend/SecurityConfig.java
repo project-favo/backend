@@ -49,8 +49,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login", "/api/auth/register", "/api/health").permitAll()
                         // Me endpoint'leri token gerektirir (authenticated user için)
                         .requestMatchers("/api/auth/me").authenticated()
-                        // Tag search endpoint'i authentication gerektirmez (public arama için)
+                        // Tag search, path, children ve create endpoint'leri authentication gerektirmez (public import için)
                         .requestMatchers("/api/tags/search").permitAll()
+                        .requestMatchers("/api/tags/path").permitAll()
+                        .requestMatchers("/api/tags/*/children").permitAll()
+                        .requestMatchers("/api/tags/{id}").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/tags").permitAll()  // Tag oluşturma için
+                        .requestMatchers(HttpMethod.DELETE, "/api/tags/*").permitAll()  // Geçici: Tag silme için
                         // Product endpoint'leri authentication gerektirmez (test için, ileride admin kontrolü eklenecek)
                         .requestMatchers("/api/products/**").permitAll()
 

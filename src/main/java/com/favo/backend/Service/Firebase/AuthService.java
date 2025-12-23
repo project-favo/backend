@@ -66,10 +66,10 @@ public class AuthService {
             throw new RuntimeException("USERNAME_ALREADY_TAKEN");
         }
 
-        return registerNewUser(info, userName);
+        return registerNewUser(info, userName, name, surname, birthdate);
     }
 
-    private SystemUser registerNewUser(FirebaseUserInfo info, String userName) {
+    private SystemUser registerNewUser(FirebaseUserInfo info, String userName, String name, String surname, LocalDate birthdate) {
         // 2️⃣ Business role
         UserType userType = userTypeRepository
                 .findByName("ROLE_USER")
@@ -80,6 +80,9 @@ public class AuthService {
         user.setFirebaseUid(info.getUid());
         user.setEmail(info.getEmail());
         user.setUserName(userName);
+        user.setName(name);
+        user.setSurname(surname);
+        user.setBirthdate(birthdate);
         user.setUserType(userType);
 
         return systemUserRepository.save(user);
