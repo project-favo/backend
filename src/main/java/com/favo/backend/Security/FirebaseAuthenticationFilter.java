@@ -33,12 +33,16 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // Login, Register, Health, Tag Search ve Product endpointleri serbest: burada token zorlamıyoruz
+        // Login, Register, Health, Tag Search/Path/Children/Create ve Product endpointleri serbest: burada token zorlamıyoruz
         // Me endpoint'leri token gerektirir (yukarıda SecurityConfig'de authenticated() olarak işaretlendi)
         if (path.equals("/api/auth/login") || 
             path.equals("/api/auth/register") || 
             path.equals("/api/health") ||
             path.startsWith("/api/tags/search") ||
+            path.startsWith("/api/tags/path") ||
+            (path.equals("/api/tags") && "POST".equalsIgnoreCase(request.getMethod())) ||  // POST /api/tags
+            (path.matches("/api/tags/\\d+") && "DELETE".equalsIgnoreCase(request.getMethod())) ||  // DELETE /api/tags/{id}
+            path.matches("/api/tags/\\d+/children") ||  // /api/tags/{id}/children
             path.startsWith("/api/products")) {
             filterChain.doFilter(request, response);
             return;

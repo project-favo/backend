@@ -136,11 +136,20 @@ public class TagController {
     /**
      * Category path'e göre tag getir (tree ile birlikte)
      * GET /api/tags/path?categoryPath=Electronic.Telephone.MobilePhone
+     * 
+     * Tag bulunamazsa 404 döndürür (script import için önemli)
      */
     @GetMapping("/path")
     public ResponseEntity<TagDto> getTagByPath(@RequestParam String categoryPath) {
-        TagDto tag = tagService.getTagByPath(categoryPath);
-        return ResponseEntity.ok(tag);
+        try {
+            TagDto tag = tagService.getTagByPath(categoryPath);
+            return ResponseEntity.ok(tag);
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Tag not found")) {
+                return ResponseEntity.notFound().build();
+            }
+            throw e; // Diğer hatalar için exception'ı fırlat
+        }
     }
 
     /**
@@ -172,6 +181,18 @@ public class TagController {
     public ResponseEntity<ImportResponse> importTrendyolCategories() {
         int importedCount = tagService.importTrendyolCategories();
         return ResponseEntity.ok(new ImportResponse(importedCount, "Successfully imported " + importedCount + " categories from Trendyol"));
+    }
+
+    /**
+     * Tag'i soft delete yap (isActive = false)
+     * DELETE /api/tags/{id}
+     * 
+     * Geçici endpoint - tag temizleme için
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTag(@PathVariable Long id) {
+        tagService.deleteTag(id);
+        return ResponseEntity.noContent().build();
     }
 
     /**
