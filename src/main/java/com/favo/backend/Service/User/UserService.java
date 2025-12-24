@@ -100,4 +100,17 @@ public class UserService {
         return systemUserRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    /**
+     * Mevcut kullanıcıyı UserType ile birlikte getirir.
+     * Transaction içinde çalışır, böylece lazy loading sorunları olmaz.
+     * 
+     * @param user SecurityContext'ten gelen user (sadece ID için kullanılır)
+     * @return UserType ile birlikte yüklenmiş SystemUser
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public SystemUser getCurrentUserWithRelations(SystemUser user) {
+        return systemUserRepository.findByIdWithUserType(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 }

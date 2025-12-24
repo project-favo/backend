@@ -8,8 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -58,12 +56,16 @@ public class AuthController {
      * 🔐 Me endpoint
      * SecurityContext içinden user gelir
      * Token burada tekrar parse edilmez
+     * User'ı database'den yeniden çeker (UserType ile birlikte) - lazy loading sorunlarını önlemek için
      */
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> me(
             @AuthenticationPrincipal SystemUser user
     ) {
-        return ResponseEntity.ok(UserMapper.toDto(user));
+        // User'ı database'den yeniden çek (UserType ile birlikte)
+        // Bu, transaction içinde çalışır ve lazy loading sorunlarını önler
+        SystemUser userWithRelations = userService.getCurrentUserWithRelations(user);
+        return ResponseEntity.ok(UserMapper.toDto(userWithRelations));
     }
 
     /**

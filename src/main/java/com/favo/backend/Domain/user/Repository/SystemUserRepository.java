@@ -29,4 +29,14 @@ public interface SystemUserRepository
     Optional<SystemUser> findByEmail(String email);
 
     boolean existsByUserName(String userName);
+
+    /**
+     * ID'ye göre kullanıcıyı UserType ile birlikte getirir (N+1 query problemini önlemek için)
+     * LEFT JOIN FETCH ile UserType tek query'de çekilir
+     * 
+     * /me endpoint'inde user.getUserType().getName() çağrıldığı için
+     * UserType'ın eager load edilmesi gerekiyor
+     */
+    @Query("SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.id = :id AND u.isActive = true")
+    Optional<SystemUser> findByIdWithUserType(@Param("id") Long id);
 }
