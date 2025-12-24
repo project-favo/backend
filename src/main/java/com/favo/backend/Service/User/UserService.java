@@ -113,4 +113,21 @@ public class UserService {
         return systemUserRepository.findByIdWithUserType(user.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    /**
+     * Mevcut kullanıcının hesabını deaktive eder.
+     * Kullanıcı kendi hesabını silebilir (soft delete - isActive = false).
+     * 
+     * @param user SecurityContext'ten gelen user
+     */
+    public void deactivateCurrentUser(SystemUser user) {
+        // User'ı database'den yeniden yükle (güncel state için)
+        SystemUser currentUser = systemUserRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // 🔥 POLYMORPHIC CALL
+        currentUser.deactivate();
+        
+        systemUserRepository.save(currentUser);
+    }
 }

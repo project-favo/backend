@@ -84,4 +84,13 @@ public class AuthController {
         SystemUser updated = userService.updateUserProfile(user, request);
         return ResponseEntity.ok(UserMapper.toDto(updated));
     }
+
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMe(
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        userService.deactivateCurrentUser(user);
+        return ResponseEntity.noContent().build();
+    }
 }
