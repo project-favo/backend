@@ -33,6 +33,10 @@ fetch('/api/tags/roots', {
 
 | Endpoint | Method | Authentication Gerekir? |
 |----------|--------|------------------------|
+| `/api/auth/register` | POST | ✅ **Evet** (Bearer token) |
+| `/api/auth/login` | POST | ✅ **Evet** (Bearer token) |
+| `/api/auth/me` | GET | ✅ **Evet** |
+| `/api/auth/me` | PUT | ✅ **Evet** |
 | `/api/tags/roots` | GET | ✅ **Evet** |
 | `/api/tags/{id}/children` | GET | ✅ **Evet** |
 | `/api/tags/search` | GET | ❌ **Hayır** (Public) |
@@ -43,6 +47,196 @@ fetch('/api/tags/roots', {
 | `/api/products` | GET, POST | ❌ **Hayır** (Test için) |
 | `/api/products/{id}` | GET | ❌ **Hayır** (Test için) |
 | `/api/products/tag/{tagId}` | GET | ❌ **Hayır** (Test için) |
+
+---
+
+## 🔐 AUTH ENDPOINT'LERİ
+
+### 1. Kullanıcı Kaydı (Register)
+Yeni kullanıcı kaydı oluşturur. Firebase'den alınan ID token ile birlikte kullanıcı bilgileri gönderilir.
+
+**Endpoint:**
+```
+POST /api/auth/register
+```
+
+**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
+
+**Request Headers:**
+```
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "userName": "johndoe",
+  "name": "John",
+  "surname": "Doe",
+  "birthdate": "1990-05-15"
+}
+```
+
+**Request Body Açıklamaları:**
+- `userName` (String): Kullanıcı adı (unique olmalı)
+- `name` (String): Kullanıcının adı
+- `surname` (String): Kullanıcının soyadı
+- `birthdate` (String): Doğum tarihi (format: "YYYY-MM-DD")
+
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "john.doe@example.com",
+  "userName": "johndoe",
+  "name": "John",
+  "surname": "Doe",
+  "birthdate": "1990-05-15",
+  "userType": "GENERAL_USER",
+  "active": true
+}
+```
+
+**Hata Durumları:**
+- `400 Bad Request`: Geçersiz request body veya validation hatası
+- `401 Unauthorized`: Geçersiz veya eksik Firebase token
+- `409 Conflict`: userName zaten kullanılıyorsa
+
+---
+
+### 2. Kullanıcı Girişi (Login)
+Daha önce kayıt olmuş kullanıcılar için giriş yapar. Firebase ID token ile authentication yapılır.
+
+**Endpoint:**
+```
+POST /api/auth/login
+```
+
+**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
+
+**Request Headers:**
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "john.doe@example.com",
+  "userName": "johndoe",
+  "name": "John",
+  "surname": "Doe",
+  "birthdate": "1990-05-15",
+  "userType": "GENERAL_USER",
+  "active": true
+}
+```
+
+**Hata Durumları:**
+- `401 Unauthorized`: Geçersiz Firebase token veya kullanıcı bulunamadı
+- `404 Not Found`: Kullanıcı daha önce kayıt olmamışsa
+
+---
+
+### 3. Kullanıcı Bilgilerini Getir (Me)
+Authenticated kullanıcının kendi bilgilerini getirir. SecurityContext'ten otomatik olarak kullanıcı bilgisi alınır.
+
+**Endpoint:**
+```
+GET /api/auth/me
+```
+
+**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
+
+**Request Headers:**
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "john.doe@example.com",
+  "userName": "johndoe",
+  "name": "John",
+  "surname": "Doe",
+  "birthdate": "1990-05-15",
+  "userType": "GENERAL_USER",
+  "active": true
+}
+```
+
+**Hata Durumları:**
+- `401 Unauthorized`: Geçersiz veya eksik token
+
+---
+
+### 4. Kullanıcı Bilgilerini Güncelle (Update Me)
+Authenticated kullanıcının kendi profil bilgilerini günceller. Tüm alanlar opsiyoneldir (sadece gönderilen alanlar güncellenir).
+
+**Endpoint:**
+```
+PUT /api/auth/me
+```
+
+**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
+
+**Request Headers:**
+```
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "userName": "newusername",
+  "name": "Jane",
+  "surname": "Smith",
+  "birthdate": "1992-08-20"
+}
+```
+
+**Request Body Açıklamaları:**
+- Tüm alanlar **opsiyonel** - sadece güncellenmek istenen alanlar gönderilir
+- `userName` (String, optional): Yeni kullanıcı adı (unique olmalı, boş olamaz)
+- `name` (String, optional): Yeni ad
+- `surname` (String, optional): Yeni soyad
+- `birthdate` (String, optional): Yeni doğum tarihi (format: "YYYY-MM-DD", geçmiş bir tarih olmalı)
+
+**Örnek - Sadece isim güncelleme:**
+```json
+{
+  "name": "Jane"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "john.doe@example.com",
+  "userName": "newusername",
+  "name": "Jane",
+  "surname": "Smith",
+  "birthdate": "1992-08-20",
+  "userType": "GENERAL_USER",
+  "active": true
+}
+```
+
+**Hata Durumları:**
+- `400 Bad Request`: Geçersiz request body veya validation hatası (örn: userName boş, birthdate gelecek tarih)
+- `401 Unauthorized`: Geçersiz veya eksik token
+- `409 Conflict`: userName zaten başka bir kullanıcı tarafından kullanılıyorsa
+
+**Önemli Notlar:**
+- Email adresi Firebase tarafında yönetilir, bu endpoint üzerinden güncellenemez
+- Sadece authenticated kullanıcı kendi profilini güncelleyebilir
+- userName değiştirilirse, yeni userName unique olmalı
 
 ---
 
@@ -670,6 +864,44 @@ if (iphone13.isLeaf) {
 ---
 
 ## 🧪 Test İçin Örnek Request'ler
+
+### Kullanıcı Kaydı (Register) - Authentication Gerekir
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{
+    "userName": "johndoe",
+    "name": "John",
+    "surname": "Doe",
+    "birthdate": "1990-05-15"
+  }'
+```
+
+### Kullanıcı Girişi (Login) - Authentication Gerekir
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Authorization: Bearer <firebase-id-token>"
+```
+
+### Kullanıcı Bilgilerini Getir (Me) - Authentication Gerekir
+```bash
+curl -X GET http://localhost:8080/api/auth/me \
+  -H "Authorization: Bearer <firebase-id-token>"
+```
+
+### Kullanıcı Bilgilerini Güncelle (Update Me) - Authentication Gerekir
+```bash
+curl -X PUT http://localhost:8080/api/auth/me \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{
+    "userName": "newusername",
+    "name": "Jane",
+    "surname": "Smith",
+    "birthdate": "1992-08-20"
+  }'
+```
 
 ### Tag Oluştur (Root) - Authentication Gerekir
 ```bash

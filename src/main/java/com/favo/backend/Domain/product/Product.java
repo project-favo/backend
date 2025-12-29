@@ -1,6 +1,7 @@
 package com.favo.backend.Domain.product;
 
 import com.favo.backend.Domain.Common.BaseEntity;
+import com.favo.backend.Domain.interaction.ProductInteraction;
 import com.favo.backend.Domain.review.Review;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -36,4 +37,8 @@ public class Product extends BaseEntity {
     // Sadece PERSIST ve MERGE kullanıyoruz (DELETE yok - fiziksel silme yapılmaz)
     @OneToMany(mappedBy = "product", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     private List<Review> reviews = new ArrayList<>(); // Bir product'un birden fazla review'ı olabilir
+
+    // Product'a yapılan interaction'lar (0..*)
+    @OneToMany(mappedBy = "targetProduct", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    private List<ProductInteraction> interactions = new ArrayList<>();
 }

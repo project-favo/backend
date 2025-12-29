@@ -1,4 +1,30 @@
 package com.favo.backend.Domain.interaction;
 
-public class ReviewInteraction {
+import com.favo.backend.Domain.review.Review;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "review_interaction")
+@Getter
+@Setter
+public class ReviewInteraction extends Interaction {
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "target_review_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_review_interaction_review")
+    )
+    private Review targetReview; // Hangi review'a interaction yapıldı
+
+    @Column(name = "type", nullable = false, length = 50)
+    private String type; // Örn: "LIKE", "DISLIKE", "REPORT" vb.
+
+    @Override
+    public void recordInteraction() {
+        // Interaction kaydı yapılacak işlemler
+        // Örn: loglama, istatistik güncelleme vb.
+    }
 }

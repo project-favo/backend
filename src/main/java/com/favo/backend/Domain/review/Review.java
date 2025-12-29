@@ -1,11 +1,15 @@
 package com.favo.backend.Domain.review;
 
 import com.favo.backend.Domain.Common.BaseEntity;
+import com.favo.backend.Domain.interaction.ReviewInteraction;
 import com.favo.backend.Domain.product.Product;
 import com.favo.backend.Domain.user.SystemUser;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "review")
@@ -40,4 +44,12 @@ public class Review extends BaseEntity {
             foreignKey = @ForeignKey(name = "fk_review_owner")
     )
     private SystemUser owner; // Review'ı yazan kullanıcı
+
+    // Review'ın media dosyaları (0..*)
+    @OneToMany(mappedBy = "review", cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE}, fetch = FetchType.LAZY)
+    private List<Media> mediaList = new ArrayList<>();
+
+    // Review'a yapılan interaction'lar (0..*)
+    @OneToMany(mappedBy = "targetReview", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    private List<ReviewInteraction> interactions = new ArrayList<>();
 }

@@ -58,6 +58,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/tags/*").permitAll()  // Geçici: Tag silme için
                         // Product endpoint'leri authentication gerektirmez (test için, ileride admin kontrolü eklenecek)
                         .requestMatchers("/api/products/**").permitAll()
+                        // Review GET endpoint'leri public (herkes görebilir)
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                        // Review POST/PUT/DELETE endpoint'leri authenticated (sadece giriş yapmış kullanıcılar)
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/**").authenticated()
+                        // Interaction GET endpoint'leri public (like count vb. herkes görebilir)
+                        .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll()
+                        // Interaction POST endpoint'leri authenticated (sadece giriş yapmış kullanıcılar like yapabilir)
+                        .requestMatchers(HttpMethod.POST, "/api/interactions/**").authenticated()
 
                         // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)
                         .anyRequest().authenticated()
