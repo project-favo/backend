@@ -27,18 +27,30 @@ public class ReviewController {
      * 🆕 Yeni review oluştur
      * POST /api/reviews
      * 
-     * Body: {
+     * User bilgisi Authorization header'daki Bearer token'dan alınır (@AuthenticationPrincipal)
+     * 
+     * Body (mediaList opsiyonel):
+     * {
      *   "productId": 123,
      *   "title": "Great product!",
      *   "description": "Really satisfied with this product...",
      *   "isCollaborative": false,
      *   "rating": 5,
-     *   "mediaList": [
+     *   "mediaList": [  // Opsiyonel - gönderilmezse review medya olmadan oluşturulur
      *     {
      *       "imageData": [base64 or binary],
      *       "mimeType": "image/jpeg"
      *     }
      *   ]
+     * }
+     * 
+     * Body (mediaList olmadan):
+     * {
+     *   "productId": 123,
+     *   "title": "Great product!",
+     *   "description": "Really satisfied with this product...",
+     *   "isCollaborative": false,
+     *   "rating": 5
      * }
      * 
      * Response: 201 Created + ReviewResponseDto
@@ -63,9 +75,9 @@ public class ReviewController {
     public ResponseEntity<List<ReviewResponseDto>> getAllReviews(
             @AuthenticationPrincipal SystemUser user
     ) {
-        Long currentUserId = user != null ? user.getId() : null;
         // Tüm review'ları getirmek için product bazlı endpoint kullanılmalı
         // Bu endpoint şimdilik boş liste döner veya kaldırılabilir
+        // user parametresi authentication için gereklidir (SecurityConfig'de tanımlı)
         return ResponseEntity.ok(List.of());
     }
 

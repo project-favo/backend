@@ -8,6 +8,6 @@ public class HealthController {
 
     @GetMapping("/api/health")
     public String health() {
-        return "Backend is not not running!!";
+        return "Backend is running!!";
     }
 }

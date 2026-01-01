@@ -14,8 +14,9 @@ public class ReviewInteraction extends Interaction {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "target_review_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_review_interaction_review")
+            nullable = false
+            // Foreign key constraint name'i kaldırıldı - Hibernate otomatik benzersiz isim oluşturur
+            // Bu, "Duplicate foreign key constraint name" hatasını önler
     )
     private Review targetReview; // Hangi review'a interaction yapıldı
 
