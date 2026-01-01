@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -71,6 +72,24 @@ public class InteractionController {
     }
 
     /**
+     * 📊 Review'a yapılan belirli type'taki interaction sayısını getir
+     * GET /api/interactions/review/{reviewId}/count?type=LIKE
+     * 
+     * Query Parameters:
+     * - type (String, required): Interaction type (LIKE, DISLIKE, REPORT, vb.)
+     * 
+     * Response: 200 OK + { "count": 123, "type": "LIKE" }
+     */
+    @GetMapping("/review/{reviewId}/count")
+    public ResponseEntity<Map<String, Object>> getReviewInteractionCountByType(
+            @PathVariable Long reviewId,
+            @RequestParam String type
+    ) {
+        Long count = interactionService.getReviewInteractionCountByType(reviewId, type);
+        return ResponseEntity.ok(Map.of("count", count, "type", type));
+    }
+
+    /**
      * 📊 Product'ın like sayısını getir
      * GET /api/interactions/product/{productId}/like-count
      * 
@@ -80,6 +99,80 @@ public class InteractionController {
     public ResponseEntity<Map<String, Long>> getProductLikeCount(@PathVariable Long productId) {
         Long count = interactionService.getProductLikeCount(productId);
         return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    /**
+     * 📊 Product'a yapılan belirli type'taki interaction sayısını getir
+     * GET /api/interactions/product/{productId}/count?type=LIKE
+     * 
+     * Query Parameters:
+     * - type (String, required): Interaction type (LIKE, WISHLIST, RATING, vb.)
+     * 
+     * Response: 200 OK + { "count": 123, "type": "LIKE" }
+     */
+    @GetMapping("/product/{productId}/count")
+    public ResponseEntity<Map<String, Object>> getProductInteractionCountByType(
+            @PathVariable Long productId,
+            @RequestParam String type
+    ) {
+        Long count = interactionService.getProductInteractionCountByType(productId, type);
+        return ResponseEntity.ok(Map.of("count", count, "type", type));
+    }
+
+    /**
+     * ⭐ Product'a rating ver (1-5 arası yıldız sistemi)
+     * POST /api/interactions/product/{productId}/rating
+     * 
+     * Eğer kullanıcı daha önce rating vermişse günceller
+     * 
+     * Request Body:
+     * {
+     *   "rating": 4  // 1-5 arası
+     * }
+     * 
+     * Response: 200 OK + { "rating": 4 }
+     * Error: 400 Bad Request - Rating 1-5 arası değilse
+     * Error: 404 Not Found - Product bulunamazsa
+     */
+    @PostMapping("/product/{productId}/rating")
+    public ResponseEntity<Map<String, Integer>> rateProduct(
+            @PathVariable Long productId,
+            @RequestBody Map<String, Integer> request,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        Integer rating = request.get("rating");
+        Integer savedRating = interactionService.rateProduct(productId, rating, user);
+        return ResponseEntity.ok(Map.of("rating", savedRating));
+    }
+
+    /**
+     * ⭐ Product'ın ortalama rating'ini getir
+     * GET /api/interactions/product/{productId}/average-rating
+     * 
+     * Response: 200 OK + { "averageRating": 4.5, "productId": 123 }
+     */
+    @GetMapping("/product/{productId}/average-rating")
+    public ResponseEntity<Map<String, Object>> getProductAverageRating(@PathVariable Long productId) {
+        Double averageRating = interactionService.getProductAverageRating(productId);
+        return ResponseEntity.ok(Map.of("averageRating", averageRating, "productId", productId));
+    }
+
+    /**
+     * ⭐ Kullanıcının product'a verdiği rating'i getir
+     * GET /api/interactions/product/{productId}/user-rating
+     * 
+     * Response: 200 OK + { "rating": 4 } veya { "rating": null } (rating vermemişse)
+     */
+    @GetMapping("/product/{productId}/user-rating")
+    public ResponseEntity<Map<String, Object>> getUserProductRating(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        Long userId = user != null ? user.getId() : null;
+        Integer rating = interactionService.getUserProductRating(productId, userId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("rating", rating);
+        return ResponseEntity.ok(response);
     }
 
     /**

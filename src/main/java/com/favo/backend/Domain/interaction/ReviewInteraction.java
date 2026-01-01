@@ -5,8 +5,14 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * ReviewInteraction entity
+ * ERD'ye uygun olarak Interaction tablosuna JOIN ile bağlanır
+ * interactionID -> Interaction.id (primary key join column)
+ */
 @Entity
 @Table(name = "review_interaction")
+@PrimaryKeyJoinColumn(name = "interaction_id", referencedColumnName = "id")
 @Getter
 @Setter
 public class ReviewInteraction extends Interaction {

@@ -125,10 +125,92 @@ public class InteractionService {
     }
 
     /**
+     * Review'a yapılan belirli type'taki interaction sayısını getir
+     */
+    public Long getReviewInteractionCountByType(Long reviewId, String type) {
+        return reviewInteractionRepository.countByReviewIdAndType(reviewId, type);
+    }
+
+    /**
      * Product'ın like sayısını getir
      */
     public Long getProductLikeCount(Long productId) {
         return productInteractionRepository.countByProductIdAndType(productId, "LIKE");
+    }
+
+    /**
+     * Product'a yapılan belirli type'taki interaction sayısını getir
+     */
+    public Long getProductInteractionCountByType(Long productId, String type) {
+        return productInteractionRepository.countByProductIdAndType(productId, type);
+    }
+
+    /**
+     * Product'a rating ver (1-5 arası)
+     * Eğer kullanıcı daha önce rating vermişse günceller
+     */
+    public Integer rateProduct(Long productId, Integer rating, SystemUser user) {
+        // Kullanıcının GeneralUser olduğunu kontrol et
+        if (!(user instanceof GeneralUser)) {
+            throw new RuntimeException("Only GeneralUser can rate products");
+        }
+
+        // Rating kontrolü (1-5 arası olmalı)
+        if (rating == null || rating < 1 || rating > 5) {
+            throw new RuntimeException("Rating must be between 1 and 5");
+        }
+
+        GeneralUser generalUser = (GeneralUser) user;
+
+        // Product kontrolü
+        Product product = productRepository.findByIdAndIsActiveTrue(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        // Mevcut rating'i kontrol et
+        var existingRating = productInteractionRepository.findRatingByPerformerIdAndProductId(
+                generalUser.getId(),
+                productId
+        );
+
+        if (existingRating.isPresent()) {
+            // Rating güncelle
+            ProductInteraction ratingInteraction = existingRating.get();
+            ratingInteraction.setRating(rating);
+            productInteractionRepository.save(ratingInteraction);
+        } else {
+            // Yeni rating oluştur
+            ProductInteraction ratingInteraction = new ProductInteraction();
+            ratingInteraction.setPerformer(generalUser);
+            ratingInteraction.setTargetProduct(product);
+            ratingInteraction.setType("RATING");
+            ratingInteraction.setRating(rating);
+            ratingInteraction.setCreatedAt(LocalDateTime.now());
+            ratingInteraction.setIsActive(true);
+            ratingInteraction.recordInteraction();
+            productInteractionRepository.save(ratingInteraction);
+        }
+
+        return rating;
+    }
+
+    /**
+     * Product'ın ortalama rating'ini getir
+     */
+    public Double getProductAverageRating(Long productId) {
+        Double average = productInteractionRepository.calculateAverageRating(productId);
+        return average != null ? average : 0.0;
+    }
+
+    /**
+     * Kullanıcının product'a verdiği rating'i getir
+     */
+    public Integer getUserProductRating(Long productId, Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return productInteractionRepository.findRatingByPerformerIdAndProductId(userId, productId)
+                .map(ProductInteraction::getRating)
+                .orElse(null);
     }
 
     /**
