@@ -47,17 +47,30 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
                         .requestMatchers("/api/auth/login", "/api/auth/register", "/api/health").permitAll()
-                        // Me endpoint'leri token gerektirir (authenticated user için)
-                        .requestMatchers("/api/auth/me").authenticated()
+                        // Me endpoint'leri token gerektirir (authenticated user için - GET, PUT, DELETE)
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/auth/me").authenticated()
                         // Tag search, path, children ve create endpoint'leri authentication gerektirmez (public import için)
                         .requestMatchers("/api/tags/search").permitAll()
                         .requestMatchers("/api/tags/path").permitAll()
                         .requestMatchers("/api/tags/*/children").permitAll()
-                        .requestMatchers("/api/tags/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/tags/*").permitAll()  // Tag get by ID - wildcard kullanıyoruz
+                        .requestMatchers(HttpMethod.GET, "/api/tags").permitAll()  // Tag list - GET /api/tags
                         .requestMatchers(HttpMethod.POST, "/api/tags").permitAll()  // Tag oluşturma için
                         .requestMatchers(HttpMethod.DELETE, "/api/tags/*").permitAll()  // Geçici: Tag silme için
                         // Product endpoint'leri authentication gerektirmez (test için, ileride admin kontrolü eklenecek)
                         .requestMatchers("/api/products/**").permitAll()
+                        // Review GET endpoint'leri public (herkes görebilir)
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                        // Review POST/PUT/DELETE endpoint'leri authenticated (sadece giriş yapmış kullanıcılar)
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/**").authenticated()
+                        // Interaction GET endpoint'leri public (like count vb. herkes görebilir)
+                        .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll()
+                        // Interaction POST endpoint'leri authenticated (sadece giriş yapmış kullanıcılar like yapabilir)
+                        .requestMatchers(HttpMethod.POST, "/api/interactions/**").authenticated()
 
                         // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)
                         .anyRequest().authenticated()
