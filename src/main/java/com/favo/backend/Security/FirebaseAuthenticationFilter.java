@@ -35,6 +35,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
 
         // Login, Register, Health, Tag Search/Path/Children/Create ve Product endpointleri serbest: burada token zorlamıyoruz
         // Me endpoint'leri token gerektirir (yukarıda SecurityConfig'de authenticated() olarak işaretlendi)
+        // GET endpoint'leri public (SecurityConfig'de permitAll() olarak işaretlendi)
         if (path.equals("/api/auth/login") || 
             path.equals("/api/auth/register") || 
             path.equals("/api/health") ||
@@ -43,7 +44,9 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             (path.equals("/api/tags") && "POST".equalsIgnoreCase(request.getMethod())) ||  // POST /api/tags
             (path.matches("/api/tags/\\d+") && "DELETE".equalsIgnoreCase(request.getMethod())) ||  // DELETE /api/tags/{id}
             path.matches("/api/tags/\\d+/children") ||  // /api/tags/{id}/children
-            path.startsWith("/api/products")) {
+            path.startsWith("/api/products") ||
+            (path.startsWith("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod())) ||  // GET /api/reviews/** (public)
+            (path.startsWith("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()))) {  // GET /api/interactions/** (public)
             filterChain.doFilter(request, response);
             return;
         }
