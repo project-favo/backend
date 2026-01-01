@@ -13,6 +13,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "product_interaction")
 @PrimaryKeyJoinColumn(name = "interaction_id", referencedColumnName = "id")
+@DiscriminatorValue("PRODUCT_INTERACTION")
 @Getter
 @Setter
 public class ProductInteraction extends Interaction {
@@ -20,8 +21,9 @@ public class ProductInteraction extends Interaction {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "target_product_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_product_interaction_product")
+            nullable = false
+            // Foreign key constraint name'i kaldırıldı - Hibernate otomatik benzersiz isim oluşturur
+            // Bu, "Duplicate foreign key constraint name" hatasını önler
     )
     private Product targetProduct; // Hangi product'a interaction yapıldı
 

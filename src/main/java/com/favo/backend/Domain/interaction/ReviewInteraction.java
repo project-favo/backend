@@ -13,6 +13,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "review_interaction")
 @PrimaryKeyJoinColumn(name = "interaction_id", referencedColumnName = "id")
+@DiscriminatorValue("REVIEW_INTERACTION")
 @Getter
 @Setter
 public class ReviewInteraction extends Interaction {
