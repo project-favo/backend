@@ -14,6 +14,11 @@ import lombok.Setter;
 @Entity
 @Table(name = "interaction")
 @Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(
+        name = "dtype",
+        discriminatorType = DiscriminatorType.STRING,
+        length = 50
+)
 @Getter
 @Setter
 public abstract class Interaction extends BaseEntity {
