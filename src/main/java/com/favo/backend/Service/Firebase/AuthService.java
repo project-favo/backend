@@ -8,11 +8,13 @@ import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -33,11 +35,27 @@ public class AuthService {
     @Transactional(readOnly = true)
     public SystemUser login(@NonNull String firebaseIdToken) {
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
+        log.info("Firebase token verified. Looking up user with firebaseUid: {}", info.getUid());
 
         // UserType fetch join ile yüklenir (SystemUserRepository'de tanımlı)
-        return systemUserRepository
-                .findByFirebaseUidAndIsActiveTrue(info.getUid())
-                .orElseThrow(() -> new RuntimeException("NO_SUCH_ACCOUNT"));
+        var user = systemUserRepository.findByFirebaseUidAndIsActiveTrue(info.getUid());
+        
+        if (user.isEmpty()) {
+            // Kullanıcı var mı ama pasif mi kontrol et
+            var inactiveUser = systemUserRepository.findByFirebaseUid(info.getUid());
+            if (inactiveUser.isPresent()) {
+                log.warn("User found but is inactive. firebaseUid: {}, isActive: {}", 
+                    info.getUid(), inactiveUser.get().getIsActive());
+                throw new RuntimeException("USER_INACTIVE");
+            } else {
+                log.warn("User not found in database. firebaseUid: {}", info.getUid());
+                throw new RuntimeException("NO_SUCH_ACCOUNT");
+            }
+        }
+        
+        log.info("User found and active. userId: {}, firebaseUid: {}", 
+            user.get().getId(), user.get().getFirebaseUid());
+        return user.get();
     }
 
     /**
