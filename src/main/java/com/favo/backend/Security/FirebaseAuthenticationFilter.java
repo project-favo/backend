@@ -38,12 +38,19 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         boolean hasToken = header != null && header.startsWith("Bearer ");
 
-        // Login, Register, Health, Tag Search/Path/Children/Create ve Product endpointleri serbest: burada token zorlamıyoruz
+        // Login ve Register endpoint'leri token kontrolü yapmadan direkt geç (token'ı controller içinde handle ediyoruz)
+        // Register endpoint'inde kullanıcı henüz DB'de yok, bu yüzden authentication yapmamalıyız
+        boolean isAuthEndpoint = path.equals("/api/auth/login") || path.equals("/api/auth/register");
+        
+        if (isAuthEndpoint) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Health, Tag Search/Path/Children/Create ve Product endpointleri serbest: burada token zorlamıyoruz
         // Me endpoint'leri token gerektirir (yukarıda SecurityConfig'de authenticated() olarak işaretlendi)
         // GET endpoint'leri public (SecurityConfig'de permitAll() olarak işaretlendi) ama token varsa authentication yapılmalı
-        boolean isPublicEndpoint = path.equals("/api/auth/login") || 
-            path.equals("/api/auth/register") || 
-            path.equals("/api/health") ||
+        boolean isPublicEndpoint = path.equals("/api/health") ||
             path.startsWith("/api/tags/search") ||
             path.startsWith("/api/tags/path") ||
             (path.equals("/api/tags") && "POST".equalsIgnoreCase(request.getMethod())) ||  // POST /api/tags
