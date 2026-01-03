@@ -2,6 +2,7 @@ package com.favo.backend.controller;
 
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.InteractionService;
+import com.favo.backend.Service.Review.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class InteractionController {
 
     private final InteractionService interactionService;
+    private final ReviewService reviewService;
 
     /**
      * ❤️ Review'a like/unlike yap
@@ -175,15 +177,26 @@ public class InteractionController {
     }
 
     /**
-     * ⭐ Product'ın ortalama rating'ini getir
+     * ⭐ Product'ın ortalama rating'ini getir (Review'ların rating'lerinden)
      * GET /api/interactions/product/{productId}/average-rating
      * 
+     * Product'a ait aktif review'ların rating'lerinin ortalamasını döner
+     * 
      * Response: 200 OK + { "averageRating": 4.5, "productId": 123 }
+     *   - averageRating: null olabilir (review yoksa)
+     * Error: 404 Not Found - Product bulunamazsa
      */
     @GetMapping("/product/{productId}/average-rating")
     public ResponseEntity<Map<String, Object>> getProductAverageRating(@PathVariable Long productId) {
-        Double averageRating = interactionService.getProductAverageRating(productId);
-        return ResponseEntity.ok(Map.of("averageRating", averageRating, "productId", productId));
+        try {
+            Double averageRating = reviewService.getProductReviewAverageRating(productId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("averageRating", averageRating);
+            response.put("productId", productId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "NOT_FOUND", "message", e.getMessage()));
+        }
     }
 
     /**
