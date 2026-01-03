@@ -176,5 +176,19 @@ public class ReviewService {
         review.setIsActive(false);
         reviewRepository.save(review);
     }
+
+    /**
+     * Product'a ait aktif review'ların ortalama rating'ini hesapla
+     * Product bulunamazsa hata fırlatır
+     * Review yoksa null döner
+     */
+    public Double getProductReviewAverageRating(Long productId) {
+        // Product'ın varlığını kontrol et
+        productRepository.findByIdAndIsActiveTrue(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        // Ortalama rating'i hesapla
+        return reviewRepository.calculateAverageRatingByProductId(productId);
+    }
 }
 
