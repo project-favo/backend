@@ -3,6 +3,7 @@ package com.favo.backend.controller;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.InteractionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import java.util.Map;
  * Interaction Controller
  * Like/Unlike işlemleri için endpoint'ler
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/interactions")
 @RequiredArgsConstructor
@@ -37,8 +39,17 @@ public class InteractionController {
             @PathVariable Long reviewId,
             @AuthenticationPrincipal SystemUser user
     ) {
-        boolean liked = interactionService.toggleReviewLike(reviewId, user);
-        return ResponseEntity.ok(Map.of("liked", liked));
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "UNAUTHORIZED", "message", "User not authenticated"));
+            }
+            boolean liked = interactionService.toggleReviewLike(reviewId, user);
+            return ResponseEntity.ok(Map.of("liked", liked));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(Map.of("error", "BAD_REQUEST", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "INTERNAL_ERROR", "message", e.getMessage()));
+        }
     }
 
     /**
@@ -55,8 +66,17 @@ public class InteractionController {
             @PathVariable Long productId,
             @AuthenticationPrincipal SystemUser user
     ) {
-        boolean liked = interactionService.toggleProductLike(productId, user);
-        return ResponseEntity.ok(Map.of("liked", liked));
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "UNAUTHORIZED", "message", "User not authenticated"));
+            }
+            boolean liked = interactionService.toggleProductLike(productId, user);
+            return ResponseEntity.ok(Map.of("liked", liked));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(Map.of("error", "BAD_REQUEST", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "INTERNAL_ERROR", "message", e.getMessage()));
+        }
     }
 
     /**
@@ -135,14 +155,23 @@ public class InteractionController {
      * Error: 404 Not Found - Product bulunamazsa
      */
     @PostMapping("/product/{productId}/rating")
-    public ResponseEntity<Map<String, Integer>> rateProduct(
+    public ResponseEntity<Map<String, Object>> rateProduct(
             @PathVariable Long productId,
             @RequestBody Map<String, Integer> request,
             @AuthenticationPrincipal SystemUser user
     ) {
-        Integer rating = request.get("rating");
-        Integer savedRating = interactionService.rateProduct(productId, rating, user);
-        return ResponseEntity.ok(Map.of("rating", savedRating));
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "UNAUTHORIZED", "message", "User not authenticated"));
+            }
+            Integer rating = request.get("rating");
+            Integer savedRating = interactionService.rateProduct(productId, rating, user);
+            return ResponseEntity.ok(Map.of("rating", savedRating));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(Map.of("error", "BAD_REQUEST", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "INTERNAL_ERROR", "message", e.getMessage()));
+        }
     }
 
     /**
@@ -186,8 +215,13 @@ public class InteractionController {
             @PathVariable Long reviewId,
             @AuthenticationPrincipal SystemUser user
     ) {
+        log.info("isReviewLiked called for reviewId: {}, user: {}", reviewId, user != null ? user.getId() : "NULL");
         Long userId = user != null ? user.getId() : null;
+        if (userId == null) {
+            log.warn("User is null in isReviewLiked endpoint");
+        }
         boolean isLiked = interactionService.isReviewLikedByUser(reviewId, userId);
+        log.info("isReviewLiked result for reviewId: {}, userId: {}, isLiked: {}", reviewId, userId, isLiked);
         return ResponseEntity.ok(Map.of("isLiked", isLiked));
     }
 
@@ -202,8 +236,13 @@ public class InteractionController {
             @PathVariable Long productId,
             @AuthenticationPrincipal SystemUser user
     ) {
+        log.info("isProductLiked called for productId: {}, user: {}", productId, user != null ? user.getId() : "NULL");
         Long userId = user != null ? user.getId() : null;
+        if (userId == null) {
+            log.warn("User is null in isProductLiked endpoint");
+        }
         boolean isLiked = interactionService.isProductLikedByUser(productId, userId);
+        log.info("isProductLiked result for productId: {}, userId: {}, isLiked: {}", productId, userId, isLiked);
         return ResponseEntity.ok(Map.of("isLiked", isLiked));
     }
 }

@@ -12,10 +12,12 @@ import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -28,7 +30,8 @@ public class InteractionService {
 
     /**
      * Review'a like/unlike yap
-     * Eğer zaten like varsa unlike yapar (soft delete), yoksa like ekler
+     * Eğer zaten like varsa (aktif veya pasif) unlike yapar (soft delete), yoksa like ekler
+     * Soft delete edilmiş kayıt varsa onu aktif eder (duplicate kayıt oluşmasını önler)
      */
     public boolean toggleReviewLike(Long reviewId, SystemUser user) {
         // Kullanıcının GeneralUser olduğunu kontrol et
@@ -47,19 +50,27 @@ public class InteractionService {
             throw new RuntimeException("You cannot like your own review");
         }
 
-        // Mevcut like'ı kontrol et
-        var existingLike = reviewInteractionRepository.findByPerformerIdAndReviewIdAndType(
+        // Mevcut like'ı kontrol et (isActive kontrolü yapmadan - hem aktif hem pasif kayıtları bulur)
+        var existingLike = reviewInteractionRepository.findByPerformerIdAndReviewIdAndTypeIgnoreActive(
                 generalUser.getId(),
                 reviewId,
                 "LIKE"
         );
 
         if (existingLike.isPresent()) {
-            // Unlike: Mevcut like'ı soft delete yap
             ReviewInteraction like = existingLike.get();
-            like.setIsActive(false);
-            reviewInteractionRepository.save(like);
-            return false; // Unlike yapıldı
+            if (like.getIsActive()) {
+                // Unlike: Mevcut aktif like'ı soft delete yap
+                like.setIsActive(false);
+                reviewInteractionRepository.save(like);
+                return false; // Unlike yapıldı
+            } else {
+                // Like: Mevcut pasif like'ı tekrar aktif et (duplicate kayıt oluşturma)
+                like.setIsActive(true);
+                // createdAt'i güncelleme - bu ilk oluşturulma zamanını korur
+                reviewInteractionRepository.save(like);
+                return true; // Like yapıldı
+            }
         } else {
             // Like: Yeni like oluştur
             ReviewInteraction like = new ReviewInteraction();
@@ -76,7 +87,8 @@ public class InteractionService {
 
     /**
      * Product'a like/unlike yap
-     * Eğer zaten like varsa unlike yapar (soft delete), yoksa like ekler
+     * Eğer zaten like varsa (aktif veya pasif) unlike yapar (soft delete), yoksa like ekler
+     * Soft delete edilmiş kayıt varsa onu aktif eder (duplicate kayıt oluşmasını önler)
      */
     public boolean toggleProductLike(Long productId, SystemUser user) {
         // Kullanıcının GeneralUser olduğunu kontrol et
@@ -90,19 +102,27 @@ public class InteractionService {
         Product product = productRepository.findByIdAndIsActiveTrue(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
 
-        // Mevcut like'ı kontrol et
-        var existingLike = productInteractionRepository.findByPerformerIdAndProductIdAndType(
+        // Mevcut like'ı kontrol et (isActive kontrolü yapmadan - hem aktif hem pasif kayıtları bulur)
+        var existingLike = productInteractionRepository.findByPerformerIdAndProductIdAndTypeIgnoreActive(
                 generalUser.getId(),
                 productId,
                 "LIKE"
         );
 
         if (existingLike.isPresent()) {
-            // Unlike: Mevcut like'ı soft delete yap
             ProductInteraction like = existingLike.get();
-            like.setIsActive(false);
-            productInteractionRepository.save(like);
-            return false; // Unlike yapıldı
+            if (like.getIsActive()) {
+                // Unlike: Mevcut aktif like'ı soft delete yap
+                like.setIsActive(false);
+                productInteractionRepository.save(like);
+                return false; // Unlike yapıldı
+            } else {
+                // Like: Mevcut pasif like'ı tekrar aktif et (duplicate kayıt oluşturma)
+                like.setIsActive(true);
+                // createdAt'i güncelleme - bu ilk oluşturulma zamanını korur
+                productInteractionRepository.save(like);
+                return true; // Like yapıldı
+            }
         } else {
             // Like: Yeni like oluştur
             ProductInteraction like = new ProductInteraction();
@@ -218,13 +238,21 @@ public class InteractionService {
      */
     public boolean isReviewLikedByUser(Long reviewId, Long userId) {
         if (userId == null) {
+            log.debug("isReviewLikedByUser: userId is null for reviewId: {}", reviewId);
             return false;
         }
-        return reviewInteractionRepository.findByPerformerIdAndReviewIdAndType(
+        log.debug("isReviewLikedByUser: Checking like for reviewId: {}, userId: {}", reviewId, userId);
+        var like = reviewInteractionRepository.findByPerformerIdAndReviewIdAndType(
                 userId,
                 reviewId,
                 "LIKE"
-        ).isPresent();
+        );
+        boolean isLiked = like.isPresent();
+        log.debug("isReviewLikedByUser: reviewId: {}, userId: {}, isLiked: {}", reviewId, userId, isLiked);
+        if (like.isPresent()) {
+            log.debug("isReviewLikedByUser: Found like - isActive: {}", like.get().getIsActive());
+        }
+        return isLiked;
     }
 
     /**
@@ -232,13 +260,21 @@ public class InteractionService {
      */
     public boolean isProductLikedByUser(Long productId, Long userId) {
         if (userId == null) {
+            log.debug("isProductLikedByUser: userId is null for productId: {}", productId);
             return false;
         }
-        return productInteractionRepository.findByPerformerIdAndProductIdAndType(
+        log.debug("isProductLikedByUser: Checking like for productId: {}, userId: {}", productId, userId);
+        var like = productInteractionRepository.findByPerformerIdAndProductIdAndType(
                 userId,
                 productId,
                 "LIKE"
-        ).isPresent();
+        );
+        boolean isLiked = like.isPresent();
+        log.debug("isProductLikedByUser: productId: {}, userId: {}, isLiked: {}", productId, userId, isLiked);
+        if (like.isPresent()) {
+            log.debug("isProductLikedByUser: Found like - isActive: {}", like.get().getIsActive());
+        }
+        return isLiked;
     }
 }
 

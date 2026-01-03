@@ -10,7 +10,7 @@ import java.util.Optional;
 public interface ProductInteractionRepository extends JpaRepository<ProductInteraction, Long> {
     
     /**
-     * Belirli bir kullanıcının belirli bir product'a yaptığı belirli tipte interaction'ı bulur
+     * Belirli bir kullanıcının belirli bir product'a yaptığı belirli tipte interaction'ı bulur (sadece aktif olanlar)
      */
     @Query("SELECT pi FROM ProductInteraction pi " +
            "WHERE pi.performer.id = :performerId " +
@@ -18,6 +18,20 @@ public interface ProductInteractionRepository extends JpaRepository<ProductInter
            "AND pi.type = :type " +
            "AND pi.isActive = true")
     Optional<ProductInteraction> findByPerformerIdAndProductIdAndType(
+            @Param("performerId") Long performerId,
+            @Param("productId") Long productId,
+            @Param("type") String type
+    );
+
+    /**
+     * Belirli bir kullanıcının belirli bir product'a yaptığı belirli tipte interaction'ı bulur (isActive kontrolü yapmadan)
+     * Toggle işlemleri için kullanılır - soft delete edilmiş kayıtları da bulur
+     */
+    @Query("SELECT pi FROM ProductInteraction pi " +
+           "WHERE pi.performer.id = :performerId " +
+           "AND pi.targetProduct.id = :productId " +
+           "AND pi.type = :type")
+    Optional<ProductInteraction> findByPerformerIdAndProductIdAndTypeIgnoreActive(
             @Param("performerId") Long performerId,
             @Param("productId") Long productId,
             @Param("type") String type
