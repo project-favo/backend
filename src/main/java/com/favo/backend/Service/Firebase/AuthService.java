@@ -2,6 +2,8 @@ package com.favo.backend.Service.Firebase;
 
 import com.favo.backend.Domain.user.FirebaseUserInfo;
 import com.favo.backend.Domain.user.GeneralUser;
+import com.favo.backend.Domain.user.ProfilePhoto;
+import com.favo.backend.Domain.user.Repository.ProfilePhotoRepository;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.Repository.UserTypeRepository;
 import com.favo.backend.Domain.user.SystemUser;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -22,6 +25,7 @@ public class AuthService {
     private final SystemUserRepository systemUserRepository;
     private final UserTypeRepository userTypeRepository;
     private final FirebaseAuthService firebaseAuthService;
+    private final ProfilePhotoRepository profilePhotoRepository;
 
     /**
      * 🔓 Login only
@@ -63,12 +67,15 @@ public class AuthService {
      * - Firebase token'ı verify eder
      * - Kullanıcı zaten kayıtlıysa hata fırlatır
      * - UI'dan gelen username ile yeni user oluşturur
+     * - Profile photo opsiyonel olarak eklenebilir
      */
     public SystemUser register(@NonNull String firebaseIdToken,
                                @NonNull String userName,
                                @NonNull String name,
                                @NonNull String surname,
-                               @NonNull LocalDate birthdate) {
+                               @NonNull LocalDate birthdate,
+                               byte[] profilePhotoData,
+                               String profilePhotoMimeType) {
 
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
@@ -84,7 +91,14 @@ public class AuthService {
             throw new RuntimeException("USERNAME_ALREADY_TAKEN");
         }
 
-        return registerNewUser(info, userName, name, surname, birthdate);
+        SystemUser user = registerNewUser(info, userName, name, surname, birthdate);
+        
+        // Profile photo varsa ekle
+        if (profilePhotoData != null && profilePhotoData.length > 0) {
+            createProfilePhoto(user, profilePhotoData, profilePhotoMimeType);
+        }
+        
+        return user;
     }
 
     private SystemUser registerNewUser(FirebaseUserInfo info, String userName, String name, String surname, LocalDate birthdate) {
@@ -104,5 +118,18 @@ public class AuthService {
         user.setUserType(userType);
 
         return systemUserRepository.save(user);
+    }
+
+    /**
+     * Kullanıcı için profil fotoğrafı oluşturur
+     */
+    private void createProfilePhoto(SystemUser user, byte[] imageData, String mimeType) {
+        ProfilePhoto photo = new ProfilePhoto();
+        photo.setUser(user);
+        photo.setImageData(imageData);
+        photo.setMimeType(mimeType);
+        photo.setUploadDate(LocalDateTime.now());
+        photo.setIsActive(true);
+        profilePhotoRepository.save(photo);
     }
 }
