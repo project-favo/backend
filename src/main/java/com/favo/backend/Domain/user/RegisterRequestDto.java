@@ -1,8 +1,5 @@
 package com.favo.backend.Domain.user;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,4 +16,10 @@ public class RegisterRequestDto {
     private String name;
     private String surname;
     private LocalDate birthdate;
+    
+    // Profile photo (nullable - opsiyonel)
+    // İki seçenek: Base64 string (profilePhotoBase64) veya binary array (profilePhotoData)
+    private String profilePhotoBase64; // Base64 encoded image string (Postman için kolay)
+    private byte[] profilePhotoData; // Binary image data (alternatif)
+    private String profilePhotoMimeType; // Örn: "image/jpeg", "image/png"
 }

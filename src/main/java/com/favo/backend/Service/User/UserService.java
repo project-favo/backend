@@ -1,5 +1,7 @@
 package com.favo.backend.Service.User;
 
+import com.favo.backend.Domain.user.ProfilePhoto;
+import com.favo.backend.Domain.user.Repository.ProfilePhotoRepository;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserUpdateRequestDto;
@@ -8,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +18,7 @@ import java.time.LocalDate;
 public class UserService {
 
     private final SystemUserRepository systemUserRepository;
+    private final ProfilePhotoRepository profilePhotoRepository;
 
     /**
      * Kullanıcı profil bilgilerini günceller.
@@ -62,7 +66,54 @@ public class UserService {
             user.setBirthdate(birthdate);
         }
 
-        return systemUserRepository.save(user);
+        // Profile photo güncelleme
+        if (request.getProfilePhotoData() != null && request.getProfilePhotoData().length > 0) {
+            String mimeType = request.getProfilePhotoMimeType();
+            if (mimeType == null || mimeType.isEmpty()) {
+                mimeType = "image/jpeg"; // Default mime type
+            }
+            updateProfilePhoto(user, request.getProfilePhotoData(), mimeType);
+        }
+
+        SystemUser saved = systemUserRepository.save(user);
+        
+        // Transaction'ı flush et (fotoğrafın kaydedildiğinden emin ol)
+        systemUserRepository.flush();
+        
+        return saved;
+    }
+
+    /**
+     * Kullanıcının profil fotoğrafını günceller
+     * Eski aktif fotoğrafı soft delete eder, yeni fotoğrafı aktif yapar
+     */
+    private void updateProfilePhoto(SystemUser user, byte[] imageData, String mimeType) {
+        // Eski aktif fotoğrafı bul ve soft delete yap
+        profilePhotoRepository.findActiveByUserId(user.getId())
+                .ifPresent(oldPhoto -> {
+                    oldPhoto.setIsActive(false);
+                    profilePhotoRepository.save(oldPhoto);
+                });
+
+        // Yeni profil fotoğrafı oluştur
+        ProfilePhoto newPhoto = new ProfilePhoto();
+        newPhoto.setUser(user);
+        newPhoto.setImageData(imageData);
+        newPhoto.setMimeType(mimeType != null ? mimeType : "image/jpeg");
+        newPhoto.setUploadDate(LocalDateTime.now());
+        newPhoto.setIsActive(true);
+        profilePhotoRepository.save(newPhoto);
+        
+        // Transaction'ı flush et (fotoğrafın kaydedildiğinden emin ol)
+        profilePhotoRepository.flush();
+    }
+
+    /**
+     * Kullanıcının aktif profil fotoğrafını getirir
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ProfilePhoto getActiveProfilePhoto(Long userId) {
+        return profilePhotoRepository.findActiveByUserId(userId).orElse(null);
     }
 
     /**

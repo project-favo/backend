@@ -17,5 +17,8 @@ public class UserResponseDto {
     private LocalDate birthdate;
     private String userType;
     private boolean active;
-
+    
+    // Profile photo (nullable - eğer profil fotoğrafı yoksa null)
+    private byte[] profilePhotoData; // Binary image data
+    private String profilePhotoMimeType; // Örn: "image/jpeg", "image/png"
 }

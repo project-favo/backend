@@ -15,6 +15,13 @@ public class UserUpdateRequestDto {
     private String name;
     private String surname;
     private LocalDate birthdate;
+    
+    // Profile photo (nullable - opsiyonel)
+    // Eğer gönderilirse, eski fotoğraf soft delete edilir ve yeni fotoğraf aktif olur
+    // İki seçenek: Base64 string (profilePhotoBase64) veya binary array (profilePhotoData)
+    private String profilePhotoBase64; // Base64 encoded image string (Postman için kolay)
+    private byte[] profilePhotoData; // Binary image data (alternatif)
+    private String profilePhotoMimeType; // Örn: "image/jpeg", "image/png"
 }
 
 
