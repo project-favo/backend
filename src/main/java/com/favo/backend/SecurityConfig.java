@@ -64,6 +64,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/**").permitAll()
                         // Review GET endpoint'leri public (herkes görebilir)
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                        // Media GET endpoint'leri public (review'lar public olduğu için media'lar da public)
+                        .requestMatchers(HttpMethod.GET, "/api/media/**").permitAll()
                         // Review POST/PUT/DELETE endpoint'leri authenticated (sadece giriş yapmış kullanıcılar)
                         .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/reviews/**").authenticated()
