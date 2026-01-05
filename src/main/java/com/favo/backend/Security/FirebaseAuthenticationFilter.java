@@ -40,9 +40,12 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
 
         // Login ve Register endpoint'leri token kontrolü yapmadan direkt geç (token'ı controller içinde handle ediyoruz)
         // Register endpoint'inde kullanıcı henüz DB'de yok, bu yüzden authentication yapmamalıyız
-        boolean isAuthEndpoint = path.equals("/api/auth/login") || path.equals("/api/auth/register");
+        // startsWith kullanarak hem /api/auth/register hem de /api/auth/register/multipart'i yakalıyoruz
+        boolean isAuthEndpoint = path.equals("/api/auth/login") || 
+                                 path.startsWith("/api/auth/register");
         
         if (isAuthEndpoint) {
+            log.debug("Auth endpoint detected (login/register), skipping authentication filter: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
