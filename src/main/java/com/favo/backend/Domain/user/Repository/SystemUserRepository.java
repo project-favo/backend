@@ -31,6 +31,12 @@ public interface SystemUserRepository
     boolean existsByUserName(String userName);
 
     /**
+     * Username'in aktif kullanıcılar arasında kullanılıp kullanılmadığını kontrol eder
+     * Soft delete edilmiş (isActive = false) kullanıcılar kontrol edilmez
+     */
+    boolean existsByUserNameAndIsActiveTrue(String userName);
+
+    /**
      * ID'ye göre kullanıcıyı UserType ile birlikte getirir (N+1 query problemini önlemek için)
      * LEFT JOIN FETCH ile UserType tek query'de çekilir
      * 

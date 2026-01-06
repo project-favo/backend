@@ -35,8 +35,9 @@ public class UserService {
                 throw new RuntimeException("USERNAME_REQUIRED");
             }
 
+            // Sadece aktif kullanıcılar arasında username kontrolü yap
             if (!newUserName.equals(user.getUserName())
-                    && systemUserRepository.existsByUserName(newUserName)) {
+                    && systemUserRepository.existsByUserNameAndIsActiveTrue(newUserName)) {
                 throw new RuntimeException("USERNAME_ALREADY_TAKEN");
             }
 
@@ -127,8 +128,9 @@ public class UserService {
             throw new RuntimeException("USERNAME_REQUIRED");
         }
 
+        // Sadece aktif kullanıcılar arasında username kontrolü yap
         if (!newUserName.equals(user.getUserName())
-                && systemUserRepository.existsByUserName(newUserName)) {
+                && systemUserRepository.existsByUserNameAndIsActiveTrue(newUserName)) {
             throw new RuntimeException("USERNAME_ALREADY_TAKEN");
         }
 

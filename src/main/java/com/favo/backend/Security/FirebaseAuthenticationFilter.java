@@ -63,8 +63,34 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             (path.startsWith("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod())) ||  // GET /api/reviews/** (public)
             (path.startsWith("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()));  // GET /api/interactions/** (public)
 
-        // Public endpoint'ler için token yoksa direkt geç, token varsa authentication yap
-        if (isPublicEndpoint && !hasToken) {
+        // Public endpoint'ler için token yoksa veya geçersizse direkt geç (SecurityConfig'de permitAll() var)
+        // Token varsa ve geçerliyse authentication yap (opsiyonel authentication)
+        if (isPublicEndpoint) {
+            if (!hasToken) {
+                // Token yoksa direkt geç
+                filterChain.doFilter(request, response);
+                return;
+            }
+            
+            // Token varsa authentication dene, ama başarısız olursa yine de geç (public endpoint)
+            String token = header.substring(7).trim();
+            try {
+                SystemUser user = authService.login(token);
+                String roleName = (user.getUserType() != null && user.getUserType().getName() != null)
+                        ? user.getUserType().getName()
+                        : "ROLE_USER";
+                
+                var auth = new FirebaseAuthenticationToken(
+                        user,
+                        user.getFirebaseUid(),
+                        List.of(new SimpleGrantedAuthority(roleName))
+                );
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                log.debug("Optional authentication successful for public endpoint: {}", path);
+            } catch (Exception ex) {
+                // Token geçersiz ama public endpoint, yine de geç
+                log.debug("Token invalid for public endpoint, continuing without authentication: {}", path);
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -76,7 +102,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = header != null ? header.substring(7).trim() : "";
+        String token = header.substring(7).trim();
         log.info("Processing authentication for path: {}", path);
 
         try {

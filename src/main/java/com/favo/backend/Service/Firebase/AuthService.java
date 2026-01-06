@@ -87,7 +87,8 @@ public class AuthService {
             throw new RuntimeException("USERNAME_REQUIRED");
         }
 
-        if (systemUserRepository.existsByUserName(userName)) {
+        // Sadece aktif kullanıcılar arasında username kontrolü yap
+        if (systemUserRepository.existsByUserNameAndIsActiveTrue(userName)) {
             throw new RuntimeException("USERNAME_ALREADY_TAKEN");
         }
 
