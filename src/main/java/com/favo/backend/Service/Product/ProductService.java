@@ -3,8 +3,8 @@ package com.favo.backend.Service.Product;
 import com.favo.backend.Domain.product.*;
 import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.product.Repository.TagRepository;
-// import com.favo.backend.Domain.review.Review; // ⚠️ Admin paneli aktifleştirildiğinde kullanılacak
-// import com.favo.backend.Domain.review.Repository.ReviewRepository; // ⚠️ Admin paneli aktifleştirildiğinde kullanılacak
+import com.favo.backend.Domain.review.Review;
+import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final TagRepository tagRepository;
-    // private final ReviewRepository reviewRepository; // ⚠️ Admin paneli aktifleştirildiğinde kullanılacak
+    private final ReviewRepository reviewRepository;
 
     /**
      * Yeni product oluştur
@@ -137,10 +137,7 @@ public class ProductService {
      * Product'ı pasif yap (soft delete)
      * ÖNEMLİ: Product silindiğinde ilişkili tüm Review'lar da soft delete yapılır
      * Veriler fiziksel olarak silinmez, sadece isActive = false yapılır
-     * 
-     * ⚠️ ŞU AN PASİF: Admin paneli aktifleştirildiğinde kullanılacak
      */
-    /*
     public void deleteProduct(Long id) {
         Product product = productRepository.findByIdAndIsActiveTrue(id)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
@@ -159,6 +156,5 @@ public class ProductService {
             // Review silindiğinde onları da soft delete yapılacak
         }
     }
-    */
 }
 

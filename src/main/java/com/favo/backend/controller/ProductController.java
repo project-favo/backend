@@ -118,19 +118,16 @@ public class ProductController {
      * 🗑️ Product'ı sil (soft delete - isActive = false)
      * DELETE /api/products/{id}
      * 
-     * ⚠️ ŞU AN PASİF: Admin paneli aktifleştirildiğinde kullanılacak
-     * 
      * Product fiziksel olarak silinmez, sadece isActive = false yapılır
+     * İlişkili tüm Review'lar da soft delete yapılır
      * 
      * Response: 204 No Content
      * Error: 404 Not Found - Product bulunamazsa veya zaten pasifse
      */
-    /*
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
-    */
 }
 
