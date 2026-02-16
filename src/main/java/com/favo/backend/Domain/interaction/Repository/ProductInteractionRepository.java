@@ -68,5 +68,12 @@ public interface ProductInteractionRepository extends JpaRepository<ProductInter
            "AND pi.isActive = true " +
            "AND pi.rating IS NOT NULL")
     Double calculateAverageRating(@Param("productId") Long productId);
+
+    /**
+     * Kullanıcıya ait tüm product interaction'ları getirir (aktif ve pasif)
+     * Admin cleanup işlemleri için kullanılır
+     */
+    @Query("SELECT pi FROM ProductInteraction pi WHERE pi.performer.id = :performerId")
+    java.util.List<ProductInteraction> findAllByPerformerId(@Param("performerId") Long performerId);
 }
 

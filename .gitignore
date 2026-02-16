@@ -40,3 +40,6 @@ src/main/resources/firebase/*.json
 .env
 .env.local
 .env.*.local
+
+### Rainforest API output (generated, regeneratable) ###
+rainforest_products_output.json

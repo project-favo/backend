@@ -2,6 +2,7 @@ package com.favo.backend.Domain.product.Repository;
 
 import com.favo.backend.Domain.product.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -23,5 +24,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "LEFT JOIN FETCH t.parent " +
            "WHERE p.tag.id = :tagId AND p.isActive = true")
     List<Product> findByTagIdWithTagAndParent(@Param("tagId") Long tagId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Product p SET p.isActive = false")
+    int softDeleteAll();
 }
 
