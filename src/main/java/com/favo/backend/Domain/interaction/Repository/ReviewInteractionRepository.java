@@ -45,12 +45,5 @@ public interface ReviewInteractionRepository extends JpaRepository<ReviewInterac
            "AND ri.type = :type " +
            "AND ri.isActive = true")
     Long countByReviewIdAndType(@Param("reviewId") Long reviewId, @Param("type") String type);
-
-    /**
-     * Kullanıcıya ait tüm review interaction'ları getirir (aktif ve pasif)
-     * Admin cleanup işlemleri için kullanılır
-     */
-    @Query("SELECT ri FROM ReviewInteraction ri WHERE ri.performer.id = :performerId")
-    java.util.List<ReviewInteraction> findAllByPerformerId(@Param("performerId") Long performerId);
 }
 

@@ -45,11 +45,4 @@ public interface SystemUserRepository
      */
     @Query("SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.id = :id AND u.isActive = true")
     Optional<SystemUser> findByIdWithUserType(@Param("id") Long id);
-
-    /**
-     * Aktif olmayan tüm kullanıcıları getirir (isActive = false)
-     * Admin cleanup işlemleri için kullanılır
-     */
-    @Query("SELECT u FROM SystemUser u WHERE u.isActive = false")
-    java.util.List<SystemUser> findAllInactiveUsers();
 }
