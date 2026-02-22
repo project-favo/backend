@@ -37,7 +37,6 @@ fetch('/api/tags/roots', {
 | `/api/auth/login` | POST | ✅ **Evet** (Bearer token) |
 | `/api/auth/me` | GET | ✅ **Evet** |
 | `/api/auth/me` | PUT | ✅ **Evet** |
-| `/api/auth/me` | DELETE | ✅ **Evet** |
 | `/api/tags/roots` | GET | ✅ **Evet** |
 | `/api/tags/{id}/children` | GET | ✅ **Evet** |
 | `/api/tags/search` | GET | ❌ **Hayır** (Public) |
@@ -48,24 +47,6 @@ fetch('/api/tags/roots', {
 | `/api/products` | GET, POST | ❌ **Hayır** (Test için) |
 | `/api/products/{id}` | GET | ❌ **Hayır** (Test için) |
 | `/api/products/tag/{tagId}` | GET | ❌ **Hayır** (Test için) |
-| `/api/reviews` | GET | ❌ **Hayır** (Public) |
-| `/api/reviews` | POST | ✅ **Evet** |
-| `/api/reviews/{id}` | GET | ❌ **Hayır** (Public) |
-| `/api/reviews/{id}` | PUT | ✅ **Evet** |
-| `/api/reviews/{id}` | DELETE | ✅ **Evet** |
-| `/api/reviews/product/{productId}` | GET | ❌ **Hayır** (Public) |
-| `/api/reviews/user/{userId}` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/review/{reviewId}/like` | POST | ✅ **Evet** |
-| `/api/interactions/product/{productId}/like` | POST | ✅ **Evet** |
-| `/api/interactions/review/{reviewId}/like-count` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/review/{reviewId}/count` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/product/{productId}/like-count` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/product/{productId}/count` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/product/{productId}/rating` | POST | ✅ **Evet** |
-| `/api/interactions/product/{productId}/average-rating` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/product/{productId}/user-rating` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/review/{reviewId}/is-liked` | GET | ❌ **Hayır** (Public) |
-| `/api/interactions/product/{productId}/is-liked` | GET | ❌ **Hayır** (Public) |
 
 ---
 
@@ -87,7 +68,7 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 ```
 
-**Request Body (Profil fotoğrafı olmadan):**
+**Request Body:**
 ```json
 {
   "userName": "johndoe",
@@ -97,25 +78,11 @@ Content-Type: application/json
 }
 ```
 
-**Request Body (Profil fotoğrafı ile - Base64):**
-```json
-{
-  "userName": "johndoe",
-  "name": "John",
-  "surname": "Doe",
-  "birthdate": "1990-05-15",
-  "profilePhotoBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
-}
-```
-
 **Request Body Açıklamaları:**
 - `userName` (String): Kullanıcı adı (unique olmalı)
 - `name` (String): Kullanıcının adı
 - `surname` (String): Kullanıcının soyadı
 - `birthdate` (String): Doğum tarihi (format: "YYYY-MM-DD")
-- `profilePhotoBase64` (String, optional): Base64 encoded profil fotoğrafı (data URI formatında)
-- `profilePhotoMimeType` (String, optional): Fotoğraf MIME type'ı (örn: "image/jpeg", "image/png")
 
 **Response:**
 ```json
@@ -127,33 +94,9 @@ Content-Type: application/json
   "surname": "Doe",
   "birthdate": "1990-05-15",
   "userType": "GENERAL_USER",
-  "active": true,
-  "profilePhotoData": "/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
+  "active": true
 }
 ```
-
-**Alternatif: Multipart Form-Data ile Kayıt**
-
-**Endpoint:**
-```
-POST /api/auth/register/multipart
-```
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-Content-Type: multipart/form-data
-```
-
-**Form Data:**
-- `userName`: "johndoe" (Text)
-- `name`: "John" (Text)
-- `surname`: "Doe" (Text)
-- `birthdate`: "1990-05-15" (Text)
-- `profilePhoto`: [FILE] (File - opsiyonel)
-
-**Not:** Multipart endpoint'te `profilePhoto` key adı kullanılmalı, `profilePhotoBase64` değil!
 
 **Hata Durumları:**
 - `400 Bad Request`: Geçersiz request body veya validation hatası
@@ -187,9 +130,7 @@ Authorization: Bearer <firebase-id-token>
   "surname": "Doe",
   "birthdate": "1990-05-15",
   "userType": "GENERAL_USER",
-  "active": true,
-  "profilePhotoData": "/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
+  "active": true
 }
 ```
 
@@ -224,9 +165,7 @@ Authorization: Bearer <firebase-id-token>
   "surname": "Doe",
   "birthdate": "1990-05-15",
   "userType": "GENERAL_USER",
-  "active": true,
-  "profilePhotoData": "/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
+  "active": true
 }
 ```
 
@@ -251,7 +190,7 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 ```
 
-**Request Body (Profil fotoğrafı olmadan):**
+**Request Body:**
 ```json
 {
   "userName": "newusername",
@@ -261,39 +200,17 @@ Content-Type: application/json
 }
 ```
 
-**Request Body (Profil fotoğrafı ile - Base64):**
-```json
-{
-  "userName": "newusername",
-  "name": "Jane",
-  "surname": "Smith",
-  "birthdate": "1992-08-20",
-  "profilePhotoBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
-}
-```
-
 **Request Body Açıklamaları:**
 - Tüm alanlar **opsiyonel** - sadece güncellenmek istenen alanlar gönderilir
 - `userName` (String, optional): Yeni kullanıcı adı (unique olmalı, boş olamaz)
 - `name` (String, optional): Yeni ad
 - `surname` (String, optional): Yeni soyad
 - `birthdate` (String, optional): Yeni doğum tarihi (format: "YYYY-MM-DD", geçmiş bir tarih olmalı)
-- `profilePhotoBase64` (String, optional): Base64 encoded profil fotoğrafı (data URI formatında)
-- `profilePhotoMimeType` (String, optional): Fotoğraf MIME type'ı (örn: "image/jpeg", "image/png")
 
 **Örnek - Sadece isim güncelleme:**
 ```json
 {
   "name": "Jane"
-}
-```
-
-**Örnek - Sadece profil fotoğrafı güncelleme:**
-```json
-{
-  "profilePhotoBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
 }
 ```
 
@@ -307,33 +224,9 @@ Content-Type: application/json
   "surname": "Smith",
   "birthdate": "1992-08-20",
   "userType": "GENERAL_USER",
-  "active": true,
-  "profilePhotoData": "/9j/4AAQSkZJRg...",
-  "profilePhotoMimeType": "image/jpeg"
+  "active": true
 }
 ```
-
-**Alternatif: Multipart Form-Data ile Güncelleme**
-
-**Endpoint:**
-```
-PUT /api/auth/me/multipart
-```
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-Content-Type: multipart/form-data
-```
-
-**Form Data:**
-- `userName`: "newusername" (Text - opsiyonel)
-- `name`: "Jane" (Text - opsiyonel)
-- `surname`: "Smith" (Text - opsiyonel)
-- `birthdate`: "1992-08-20" (Text - opsiyonel)
-- `profilePhoto`: [FILE] (File - opsiyonel)
-
-**Not:** Multipart endpoint'te `profilePhoto` key adı kullanılmalı, `profilePhotoBase64` değil!
 
 **Hata Durumları:**
 - `400 Bad Request`: Geçersiz request body veya validation hatası (örn: userName boş, birthdate gelecek tarih)
@@ -344,35 +237,6 @@ Content-Type: multipart/form-data
 - Email adresi Firebase tarafında yönetilir, bu endpoint üzerinden güncellenemez
 - Sadece authenticated kullanıcı kendi profilini güncelleyebilir
 - userName değiştirilirse, yeni userName unique olmalı
-
----
-
-### 5. Kullanıcı Hesabını Sil (Delete Me)
-Authenticated kullanıcının kendi hesabını siler (soft delete - isActive = false).
-
-**Endpoint:**
-```
-DELETE /api/auth/me
-```
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```
-204 No Content
-```
-
-**Hata Durumları:**
-- `401 Unauthorized`: Geçersiz veya eksik token
-
-**Önemli Notlar:**
-- Kullanıcı fiziksel olarak silinmez, sadece `isActive = false` yapılır
-- Sadece authenticated kullanıcı kendi hesabını silebilir
 
 ---
 
@@ -884,717 +748,6 @@ GET /api/products/tag/{tagId}
 
 ---
 
-## 📝 REVIEW ENDPOINT'LERİ
-
-### 1. Review Oluştur
-Yeni review oluşturur. User bilgisi Authorization header'daki Bearer token'dan otomatik olarak alınır.
-
-**Endpoint:**
-```
-POST /api/reviews
-```
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
-```
-
-**Request Body (mediaList opsiyonel):**
-```json
-{
-  "productId": 123,
-  "title": "Great product!",
-  "description": "Really satisfied with this product...",
-  "isCollaborative": false,
-  "rating": 5,
-  "mediaList": [
-    {
-      "imageData": [base64 or binary],
-      "mimeType": "image/jpeg"
-    }
-  ]
-}
-```
-
-**Request Body (mediaList olmadan):**
-```json
-{
-  "productId": 123,
-  "title": "Great product!",
-  "description": "Really satisfied with this product...",
-  "isCollaborative": false,
-  "rating": 5
-}
-```
-
-**Request Body Açıklamaları:**
-- `productId` (Long, required): Review hangi product için
-- `title` (String, required): Review başlığı
-- `description` (String, optional): Review açıklaması
-- `isCollaborative` (Boolean, optional): Collaborative review mı? (default: false)
-- `rating` (Integer, required): 1-5 arası rating
-- `mediaList` (List, optional): Review'a eklenen media dosyaları (gönderilmezse review medya olmadan oluşturulur)
-  - `imageData` (byte[]): Base64 veya binary image data
-  - `mimeType` (String): MIME type (örn: "image/jpeg", "image/png")
-
-**Response:**
-```json
-{
-  "id": 1,
-  "title": "Great product!",
-  "description": "Really satisfied with this product...",
-  "isCollaborative": false,
-  "rating": 5,
-  "createdAt": "2024-01-15T10:30:00",
-  "productId": 123,
-  "productName": "iPhone 13 Pro",
-  "ownerId": 1,
-  "ownerUserName": "johndoe",
-  "mediaList": [
-    {
-      "id": 1,
-      "mimeType": "image/jpeg",
-      "uploadDate": "2024-01-15T10:30:00"
-    }
-  ],
-  "likeCount": 0,
-  "isLikedByCurrentUser": false
-}
-```
-
-**Hata Durumları:**
-- `400 Bad Request`: Product bulunamazsa veya rating geçersizse (1-5 arası olmalı)
-- `401 Unauthorized`: Geçersiz veya eksik token
-
----
-
-### 2. Review Getir (ID'ye Göre)
-Belirli bir review'ı ID'sine göre getirir.
-
-**Endpoint:**
-```
-GET /api/reviews/{id}
-```
-
-**Path Parameters:**
-- `id` (Long): Review ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Request Headers (Opsiyonel - eğer authenticated kullanıcı varsa):**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "title": "Great product!",
-  "description": "Really satisfied with this product...",
-  "isCollaborative": false,
-  "rating": 5,
-  "createdAt": "2024-01-15T10:30:00",
-  "productId": 123,
-  "productName": "iPhone 13 Pro",
-  "ownerId": 1,
-  "ownerUserName": "johndoe",
-  "mediaList": [
-    {
-      "id": 1,
-      "mimeType": "image/jpeg",
-      "uploadDate": "2024-01-15T10:30:00"
-    }
-  ],
-  "likeCount": 5,
-  "isLikedByCurrentUser": true
-}
-```
-
-**Hata Durumları:**
-- `404 Not Found`: Review bulunamazsa veya pasifse
-
-**Not:** Eğer authenticated kullanıcı varsa, `isLikedByCurrentUser` doğru değeri döner. Yoksa `false` döner.
-
----
-
-### 3. Product'a Göre Review'ları Getir
-Belirli bir product'a ait tüm aktif review'ları getirir.
-
-**Endpoint:**
-```
-GET /api/reviews/product/{productId}
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Request Headers (Opsiyonel - eğer authenticated kullanıcı varsa):**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "title": "Great product!",
-    "description": "Really satisfied with this product...",
-    "isCollaborative": false,
-    "rating": 5,
-    "createdAt": "2024-01-15T10:30:00",
-    "productId": 123,
-    "productName": "iPhone 13 Pro",
-    "ownerId": 1,
-    "ownerUserName": "johndoe",
-    "mediaList": [],
-    "likeCount": 5,
-    "isLikedByCurrentUser": false
-  },
-  {
-    "id": 2,
-    "title": "Not bad",
-    "description": "Could be better...",
-    "isCollaborative": false,
-    "rating": 3,
-    "createdAt": "2024-01-15T11:00:00",
-    "productId": 123,
-    "productName": "iPhone 13 Pro",
-    "ownerId": 2,
-    "ownerUserName": "janedoe",
-    "mediaList": [],
-    "likeCount": 2,
-    "isLikedByCurrentUser": true
-  }
-]
-```
-
----
-
-### 4. Kullanıcıya Göre Review'ları Getir
-Belirli bir kullanıcının tüm aktif review'larını getirir.
-
-**Endpoint:**
-```
-GET /api/reviews/user/{userId}
-```
-
-**Path Parameters:**
-- `userId` (Long): Kullanıcı ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Request Headers (Opsiyonel - eğer authenticated kullanıcı varsa):**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "title": "Great product!",
-    "description": "Really satisfied with this product...",
-    "isCollaborative": false,
-    "rating": 5,
-    "createdAt": "2024-01-15T10:30:00",
-    "productId": 123,
-    "productName": "iPhone 13 Pro",
-    "ownerId": 1,
-    "ownerUserName": "johndoe",
-    "mediaList": [],
-    "likeCount": 5,
-    "isLikedByCurrentUser": false
-  }
-]
-```
-
----
-
-### 5. Review Güncelle
-Review'ı günceller. Sadece review sahibi güncelleyebilir. Partial update: Sadece gönderilen field'lar güncellenir.
-
-**Endpoint:**
-```
-PUT /api/reviews/{id}
-```
-
-**Path Parameters:**
-- `id` (Long): Review ID'si
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
-```
-
-**Request Body (Tüm alanlar opsiyonel):**
-```json
-{
-  "title": "Updated Title",
-  "description": "Updated description...",
-  "isCollaborative": true,
-  "rating": 4,
-  "mediaList": [
-    {
-      "imageData": [base64 or binary],
-      "mimeType": "image/jpeg"
-    }
-  ]
-}
-```
-
-**Örnek - Sadece başlık güncelleme:**
-```json
-{
-  "title": "Updated Title"
-}
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "title": "Updated Title",
-  "description": "Updated description...",
-  "isCollaborative": true,
-  "rating": 4,
-  "createdAt": "2024-01-15T10:30:00",
-  "productId": 123,
-  "productName": "iPhone 13 Pro",
-  "ownerId": 1,
-  "ownerUserName": "johndoe",
-  "mediaList": [],
-  "likeCount": 5,
-  "isLikedByCurrentUser": false
-}
-```
-
-**Hata Durumları:**
-- `401 Unauthorized`: Geçersiz veya eksik token
-- `403 Forbidden`: Review sahibi değilseniz
-- `404 Not Found`: Review bulunamazsa
-
-**Not:** `mediaList` güncellenirse, eski media'lar soft delete yapılır ve yeni media'lar eklenir.
-
----
-
-### 6. Review Sil
-Review'ı siler (soft delete - isActive = false). Sadece review sahibi silebilir.
-
-**Endpoint:**
-```
-DELETE /api/reviews/{id}
-```
-
-**Path Parameters:**
-- `id` (Long): Review ID'si
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```
-204 No Content
-```
-
-**Hata Durumları:**
-- `401 Unauthorized`: Geçersiz veya eksik token
-- `403 Forbidden`: Review sahibi değilseniz
-- `404 Not Found`: Review bulunamazsa veya zaten pasifse
-
-**Önemli Notlar:**
-- Review fiziksel olarak silinmez, sadece `isActive = false` yapılır
-- Sadece authenticated kullanıcı kendi review'ını silebilir
-
----
-
-## ❤️ INTERACTION ENDPOINT'LERİ
-
-### 1. Review'a Like/Unlike Yap
-Review'a like/unlike yapar. Eğer zaten like varsa unlike yapar, yoksa like ekler. Kendi review'ınızı beğenemezsiniz.
-
-**Endpoint:**
-```
-POST /api/interactions/review/{reviewId}/like
-```
-
-**Path Parameters:**
-- `reviewId` (Long): Review ID'si
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-{
-  "liked": true
-}
-```
-
-veya
-
-```json
-{
-  "liked": false
-}
-```
-
-**Hata Durumları:**
-- `400 Bad Request`: Kendi review'ınızı beğenmeye çalışırsanız
-- `401 Unauthorized`: Geçersiz veya eksik token
-- `404 Not Found`: Review bulunamazsa
-
----
-
-### 2. Product'a Like/Unlike Yap
-Product'a like/unlike yapar. Eğer zaten like varsa unlike yapar, yoksa like ekler.
-
-**Endpoint:**
-```
-POST /api/interactions/product/{productId}/like
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-{
-  "liked": true
-}
-```
-
-veya
-
-```json
-{
-  "liked": false
-}
-```
-
-**Hata Durumları:**
-- `401 Unauthorized`: Geçersiz veya eksik token
-- `404 Not Found`: Product bulunamazsa
-
----
-
-### 3. Review'ın Like Sayısını Getir
-Belirli bir review'ın like sayısını getirir.
-
-**Endpoint:**
-```
-GET /api/interactions/review/{reviewId}/like-count
-```
-
-**Path Parameters:**
-- `reviewId` (Long): Review ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Response:**
-```json
-{
-  "count": 15
-}
-```
-
----
-
-### 4. Product'ın Like Sayısını Getir
-Belirli bir product'ın like sayısını getirir.
-
-**Endpoint:**
-```
-GET /api/interactions/product/{productId}/like-count
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Response:**
-```json
-{
-  "count": 42
-}
-```
-
----
-
-### 5. Kullanıcının Review'ı Beğenip Beğenmediğini Kontrol Et
-Mevcut kullanıcının belirli bir review'ı beğenip beğenmediğini kontrol eder.
-
-**Endpoint:**
-```
-GET /api/interactions/review/{reviewId}/is-liked
-```
-
-**Path Parameters:**
-- `reviewId` (Long): Review ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Request Headers (Opsiyonel - eğer authenticated kullanıcı varsa):**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-{
-  "isLiked": true
-}
-```
-
-veya
-
-```json
-{
-  "isLiked": false
-}
-```
-
-**Not:** Eğer kullanıcı authenticated değilse veya review'ı beğenmemişse `false` döner.
-
----
-
-### 6. Kullanıcının Product'ı Beğenip Beğenmediğini Kontrol Et
-Mevcut kullanıcının belirli bir product'ı beğenip beğenmediğini kontrol eder.
-
-**Endpoint:**
-```
-GET /api/interactions/product/{productId}/is-liked
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Request Headers (Opsiyonel - eğer authenticated kullanıcı varsa):**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response:**
-```json
-{
-  "isLiked": true
-}
-```
-
-veya
-
-```json
-{
-  "isLiked": false
-}
-```
-
-**Not:** Eğer kullanıcı authenticated değilse veya product'ı beğenmemişse `false` döner.
-
----
-
-### 7. Review'a Yapılan Type'a Göre Interaction Sayısını Getir
-Belirli bir review'a yapılan belirli type'taki interaction sayısını getirir.
-
-**Endpoint:**
-```
-GET /api/interactions/review/{reviewId}/count?type={type}
-```
-
-**Path Parameters:**
-- `reviewId` (Long): Review ID'si
-
-**Query Parameters:**
-- `type` (String, required): Interaction type (LIKE, DISLIKE, REPORT, vb.)
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Örnek İstekler:**
-```
-GET /api/interactions/review/1/count?type=LIKE
-GET /api/interactions/review/1/count?type=DISLIKE
-```
-
-**Response:**
-```json
-{
-  "count": 15,
-  "type": "LIKE"
-}
-```
-
----
-
-### 8. Product'a Yapılan Type'a Göre Interaction Sayısını Getir
-Belirli bir product'a yapılan belirli type'taki interaction sayısını getirir.
-
-**Endpoint:**
-```
-GET /api/interactions/product/{productId}/count?type={type}
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Query Parameters:**
-- `type` (String, required): Interaction type (LIKE, WISHLIST, RATING, vb.)
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Örnek İstekler:**
-```
-GET /api/interactions/product/1/count?type=LIKE
-GET /api/interactions/product/1/count?type=WISHLIST
-GET /api/interactions/product/1/count?type=RATING
-```
-
-**Response:**
-```json
-{
-  "count": 42,
-  "type": "LIKE"
-}
-```
-
----
-
-### 9. Product'a Rating Ver (1-5 Arası Yıldız Sistemi)
-Product'a rating verir (1-5 arası). Eğer kullanıcı daha önce rating vermişse günceller.
-
-**Endpoint:**
-```
-POST /api/interactions/product/{productId}/rating
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ✅ **Gerekir** - Bearer token ile istek atılmalı
-
-**Request Headers:**
-```
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "rating": 4
-}
-```
-
-**Request Body Açıklamaları:**
-- `rating` (Integer, required): 1-5 arası rating değeri
-
-**Response:**
-```json
-{
-  "rating": 4
-}
-```
-
-**Hata Durumları:**
-- `400 Bad Request`: Rating 1-5 arası değilse
-- `401 Unauthorized`: Geçersiz veya eksik token
-- `404 Not Found`: Product bulunamazsa
-
-**Önemli Notlar:**
-- Rating sadece Product'lar için geçerlidir (Review'lar için değil)
-- Eğer kullanıcı daha önce rating vermişse, yeni rating eski rating'i günceller
-- Rating interaction type'ı "RATING" olarak kaydedilir
-
----
-
-### 10. Product'ın Ortalama Rating'ini Getir
-Belirli bir product'ın ortalama rating'ini getirir (tüm kullanıcıların verdiği rating'lerin ortalaması).
-
-**Endpoint:**
-```
-GET /api/interactions/product/{productId}/average-rating
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Response:**
-```json
-{
-  "averageRating": 4.5,
-  "productId": 123
-}
-```
-
-**Not:** Eğer hiç rating verilmemişse, `averageRating` 0.0 döner.
-
----
-
-### 11. Kullanıcının Product'a Verdiği Rating'i Getir
-Mevcut kullanıcının belirli bir product'a verdiği rating'i getirir.
-
-**Endpoint:**
-```
-GET /api/interactions/product/{productId}/user-rating
-```
-
-**Path Parameters:**
-- `productId` (Long): Product ID'si
-
-**Authentication:** ❌ Gerekmez (Public)
-
-**Request Headers (Opsiyonel - eğer authenticated kullanıcı varsa):**
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-**Response (Rating vermişse):**
-```json
-{
-  "rating": 4
-}
-```
-
-**Response (Rating vermemişse):**
-```json
-{
-  "rating": null
-}
-```
-
-**Not:** Eğer kullanıcı authenticated değilse veya rating vermemişse `null` döner.
-
----
-
 ## 📝 ÖNEMLİ NOTLAR
 
 ### 1. Leaf Tag Kuralı
@@ -1618,20 +771,6 @@ Büyük veri setlerinde performans için:
 - Tüm tarih/saat alanları ISO 8601 formatında: `"2024-01-15T10:30:00"`
 - `isActive` field'ı boolean olarak gelir
 - `parentId` null olabilir (root tag'ler için)
-
-### 5. Product Interaction Type'ları
-Product'lar için kullanılan interaction type'ları:
-- `LIKE`: Product'ı beğenme
-- `WISHLIST`: Product'ı wishlist'e ekleme
-- `RATING`: Product'a rating verme (1-5 arası, rating field'ında saklanır)
-
-**Önemli:** Rating sadece Product'lar için geçerlidir. Review'lar için rating yoktur (Review entity'sinde zaten rating field'ı var).
-
-### 6. Review Interaction Type'ları
-Review'lar için kullanılan interaction type'ları:
-- `LIKE`: Review'ı beğenme
-- `DISLIKE`: Review'ı beğenmeme
-- `REPORT`: Review'ı şikayet etme
 
 ---
 
@@ -1735,21 +874,8 @@ curl -X POST http://localhost:8080/api/auth/register \
     "userName": "johndoe",
     "name": "John",
     "surname": "Doe",
-    "birthdate": "1990-05-15",
-    "profilePhotoBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-    "profilePhotoMimeType": "image/jpeg"
+    "birthdate": "1990-05-15"
   }'
-```
-
-### Kullanıcı Kaydı (Multipart) - Authentication Gerekir
-```bash
-curl -X POST http://localhost:8080/api/auth/register/multipart \
-  -H "Authorization: Bearer <firebase-id-token>" \
-  -F "userName=johndoe" \
-  -F "name=John" \
-  -F "surname=Doe" \
-  -F "birthdate=1990-05-15" \
-  -F "profilePhoto=@/path/to/photo.jpg"
 ```
 
 ### Kullanıcı Girişi (Login) - Authentication Gerekir
@@ -1773,21 +899,8 @@ curl -X PUT http://localhost:8080/api/auth/me \
     "userName": "newusername",
     "name": "Jane",
     "surname": "Smith",
-    "birthdate": "1992-08-20",
-    "profilePhotoBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-    "profilePhotoMimeType": "image/jpeg"
+    "birthdate": "1992-08-20"
   }'
-```
-
-### Kullanıcı Bilgilerini Güncelle (Multipart) - Authentication Gerekir
-```bash
-curl -X PUT http://localhost:8080/api/auth/me/multipart \
-  -H "Authorization: Bearer <firebase-id-token>" \
-  -F "userName=newusername" \
-  -F "name=Jane" \
-  -F "surname=Smith" \
-  -F "birthdate=1992-08-20" \
-  -F "profilePhoto=@/path/to/photo.jpg"
 ```
 
 ### Tag Oluştur (Root) - Authentication Gerekir
@@ -1835,98 +948,7 @@ curl -X POST http://localhost:8080/api/products \
   }'
 ```
 
-### Review Oluştur (mediaList olmadan) - Authentication Gerekir
-```bash
-curl -X POST http://localhost:8080/api/reviews \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <firebase-id-token>" \
-  -d '{
-    "productId": 123,
-    "title": "Great product!",
-    "description": "Really satisfied with this product...",
-    "isCollaborative": false,
-    "rating": 5
-  }'
-```
-
-### Product'a Göre Review'ları Getir (Public)
-```bash
-curl -X GET http://localhost:8080/api/reviews/product/123
-```
-
-### Review'a Like Yap - Authentication Gerekir
-```bash
-curl -X POST http://localhost:8080/api/interactions/review/1/like \
-  -H "Authorization: Bearer <firebase-id-token>"
-```
-
-### Review Like Sayısını Getir (Public)
-```bash
-curl -X GET http://localhost:8080/api/interactions/review/1/like-count
-```
-
-### Kullanıcının Review'ı Beğenip Beğenmediğini Kontrol Et (Public)
-```bash
-curl -X GET http://localhost:8080/api/interactions/review/1/is-liked \
-  -H "Authorization: Bearer <firebase-id-token>"
-```
-
-### Review Type'a Göre Count Getir (Public)
-```bash
-curl -X GET "http://localhost:8080/api/interactions/review/1/count?type=LIKE"
-```
-
-### Product Type'a Göre Count Getir (Public)
-```bash
-curl -X GET "http://localhost:8080/api/interactions/product/1/count?type=LIKE"
-```
-
-### Product'a Rating Ver - Authentication Gerekir
-```bash
-curl -X POST http://localhost:8080/api/interactions/product/1/rating \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <firebase-id-token>" \
-  -d '{
-    "rating": 4
-  }'
-```
-
-### Product Ortalama Rating Getir (Public)
-```bash
-curl -X GET http://localhost:8080/api/interactions/product/1/average-rating
-```
-
-### Kullanıcının Product Rating'ini Getir (Public)
-```bash
-curl -X GET http://localhost:8080/api/interactions/product/1/user-rating \
-  -H "Authorization: Bearer <firebase-id-token>"
-```
-
 ---
 
 **Son Güncelleme:** 2024-01-15
-
----
-
-## 📋 Changelog
-
-### 2024-01-15
-- ✅ Review endpoint'leri eklendi (GET, POST, PUT, DELETE)
-- ✅ Interaction endpoint'leri eklendi (Like/Unlike, Like Count, Is Liked)
-- ✅ DELETE /api/auth/me endpoint'i eklendi
-- ✅ Authentication tablosu güncellendi
-- ✅ Type'a göre interaction count endpoint'leri eklendi (Review ve Product için)
-  - GET /api/interactions/review/{reviewId}/count?type={type}
-  - GET /api/interactions/product/{productId}/count?type={type}
-- ✅ Product rating sistemi eklendi (1-5 arası yıldız sistemi)
-  - POST /api/interactions/product/{productId}/rating - Rating ver/güncelle
-  - GET /api/interactions/product/{productId}/average-rating - Ortalama rating
-  - GET /api/interactions/product/{productId}/user-rating - Kullanıcının rating'i
-- ✅ Profil fotoğrafı desteği eklendi
-  - POST /api/auth/register - Profil fotoğrafı ile kayıt (Base64 veya multipart)
-  - POST /api/auth/register/multipart - Multipart form-data ile kayıt
-  - PUT /api/auth/me - Profil fotoğrafı güncelleme (Base64 veya multipart)
-  - PUT /api/auth/me/multipart - Multipart form-data ile güncelleme
-  - GET /api/auth/me - Response'da profil fotoğrafı bilgisi
-  - Response'larda `profilePhotoData` ve `profilePhotoMimeType` alanları eklendi
 

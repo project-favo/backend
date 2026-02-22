@@ -7,13 +7,9 @@ import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -91,52 +87,6 @@ public class ProductService {
                 .stream()
                 .map(ProductMapper::toDto)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Ana sayfa feed: Sıradan ilk 20 ürün (en yeni önce), her sayfada 20 ürün, pagination.
-     */
-    public ProductSearchResultDto getHomeFeed(Pageable pageable) {
-        Pageable safe = pageable != null ? pageable : PageRequest.of(0, 20);
-        Page<Product> page = productRepository.findActiveProductsOrderByCreatedAtDesc(safe);
-        List<ProductResponseDto> content = page.getContent().stream()
-                .map(ProductMapper::toDto)
-                .collect(Collectors.toList());
-        return new ProductSearchResultDto(
-                content,
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.getSize(),
-                page.getNumber()
-        );
-    }
-
-    /**
-     * Search & Filter: metin araması, tag filtresi, category path prefix ile sayfalı ürün listesi.
-     * @param q Ürün adı veya açıklamada aranacak metin (boş/null = filtre yok)
-     * @param tagIds Bu tag'lerden birine ait ürünler (boş/null = filtre yok)
-     * @param categoryPathPrefix Tag categoryPath bu prefix ile başlayan ürünler (boş/null = filtre yok)
-     * @param pageable Sayfa (page, size)
-     */
-    public ProductSearchResultDto searchAndFilter(String q, List<Long> tagIds, String categoryPathPrefix, Pageable pageable) {
-        List<Long> safeTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : null;
-        Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 20);
-        Page<Product> page = productRepository.searchAndFilter(
-                (q != null && !q.isBlank()) ? q.trim() : null,
-                safeTagIds != null ? safeTagIds : Collections.emptyList(),
-                (categoryPathPrefix != null && !categoryPathPrefix.isBlank()) ? categoryPathPrefix.trim() : null,
-                safePageable
-        );
-        List<ProductResponseDto> content = page.getContent().stream()
-                .map(ProductMapper::toDto)
-                .collect(Collectors.toList());
-        return new ProductSearchResultDto(
-                content,
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.getSize(),
-                page.getNumber()
-        );
     }
 
     /**
