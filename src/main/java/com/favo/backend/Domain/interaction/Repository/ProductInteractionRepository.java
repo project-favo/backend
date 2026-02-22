@@ -1,6 +1,8 @@
 package com.favo.backend.Domain.interaction.Repository;
 
 import com.favo.backend.Domain.interaction.ProductInteraction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -68,5 +70,19 @@ public interface ProductInteractionRepository extends JpaRepository<ProductInter
            "AND pi.isActive = true " +
            "AND pi.rating IS NOT NULL")
     Double calculateAverageRating(@Param("productId") Long productId);
+
+    /**
+     * Kullanıcının beğendiği (wishlist) ürünleri sayfalı getirir.
+     * Product + tag + tag.parent fetch ile N+1 önlenir. Sadece aktif like ve aktif product'lar.
+     */
+    @Query(value = "SELECT DISTINCT pi FROM ProductInteraction pi " +
+           "LEFT JOIN FETCH pi.targetProduct p " +
+           "LEFT JOIN FETCH p.tag t " +
+           "LEFT JOIN FETCH t.parent " +
+           "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true AND p.isActive = true " +
+           "ORDER BY pi.createdAt DESC",
+           countQuery = "SELECT COUNT(pi) FROM ProductInteraction pi " +
+           "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true AND pi.targetProduct.isActive = true")
+    Page<ProductInteraction> findLikedProductsByPerformerId(@Param("performerId") Long performerId, Pageable pageable);
 }
 

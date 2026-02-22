@@ -1,10 +1,13 @@
 package com.favo.backend.controller;
 
+import com.favo.backend.Domain.product.ProductSearchResultDto;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.InteractionService;
 import com.favo.backend.Service.Review.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -79,6 +82,28 @@ public class InteractionController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "INTERNAL_ERROR", "message", e.getMessage()));
         }
+    }
+
+    /**
+     * 📋 Kullanıcının wishlist'i (beğendiği ürünler)
+     * GET /api/interactions/me/wishlist
+     *
+     * Beğeni = wishlist; kullanıcının like ettiği ürünler sayfalı döner (en son beğenilen önce).
+     * Query: page=0&size=20 (varsayılan size=20)
+     *
+     * Response: 200 OK + ProductSearchResultDto (content, totalElements, totalPages, size, number)
+     * Error: 401 Unauthorized - Giriş yapılmamışsa
+     */
+    @GetMapping("/me/wishlist")
+    public ResponseEntity<?> getMyWishlist(
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "UNAUTHORIZED", "message", "User not authenticated"));
+        }
+        ProductSearchResultDto result = interactionService.getWishlist(user.getId(), pageable);
+        return ResponseEntity.ok(result);
     }
 
     /**

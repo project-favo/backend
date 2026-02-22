@@ -4,7 +4,10 @@ import com.favo.backend.Domain.interaction.ProductInteraction;
 import com.favo.backend.Domain.interaction.Repository.ProductInteractionRepository;
 import com.favo.backend.Domain.interaction.Repository.ReviewInteractionRepository;
 import com.favo.backend.Domain.interaction.ReviewInteraction;
+import com.favo.backend.Domain.product.ProductMapper;
 import com.favo.backend.Domain.product.Product;
+import com.favo.backend.Domain.product.ProductResponseDto;
+import com.favo.backend.Domain.product.ProductSearchResultDto;
 import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
@@ -13,9 +16,14 @@ import com.favo.backend.Domain.user.SystemUser;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -275,6 +283,33 @@ public class InteractionService {
             log.debug("isProductLikedByUser: Found like - isActive: {}", like.get().getIsActive());
         }
         return isLiked;
+    }
+
+    /**
+     * Kullanıcının wishlist'ini (beğendiği ürünler) sayfalı getirir.
+     * Beğeni = wishlist; like edilen ürünler listelenir (en son beğenilen önce).
+     */
+    public ProductSearchResultDto getWishlist(Long userId, Pageable pageable) {
+        if (userId == null) {
+            return new ProductSearchResultDto(
+                    Collections.emptyList(),
+                    0L,
+                    0,
+                    pageable.getPageSize(),
+                    pageable.getPageNumber()
+            );
+        }
+        Page<ProductInteraction> page = productInteractionRepository.findLikedProductsByPerformerId(userId, pageable);
+        List<ProductResponseDto> content = page.getContent().stream()
+                .map(pi -> ProductMapper.toDto(pi.getTargetProduct()))
+                .collect(Collectors.toList());
+        return new ProductSearchResultDto(
+                content,
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.getSize(),
+                page.getNumber()
+        );
     }
 }
 
