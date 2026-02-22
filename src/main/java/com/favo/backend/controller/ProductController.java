@@ -2,8 +2,11 @@ package com.favo.backend.controller;
 
 import com.favo.backend.Domain.product.ProductRequestDto;
 import com.favo.backend.Domain.product.ProductResponseDto;
+import com.favo.backend.Domain.product.ProductSearchResultDto;
 import com.favo.backend.Service.Product.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -73,15 +76,58 @@ public class ProductController {
     /**
      * 🏷️ Tag'e göre product'ları getir
      * GET /api/products/tag/{tagId}
-     * 
+     *
      * Belirli bir tag'e ait tüm aktif product'ları döner
-     * 
+     *
      * Response: 200 OK + List<ProductResponseDto>
      */
     @GetMapping("/tag/{tagId}")
     public ResponseEntity<List<ProductResponseDto>> getProductsByTag(@PathVariable Long tagId) {
         List<ProductResponseDto> products = productService.getProductsByTagId(tagId);
         return ResponseEntity.ok(products);
+    }
+
+    /**
+     * 🏠 Ana sayfa feed
+     * GET /api/products/home
+     *
+     * Sıradan ilk 20 ürün (en yeni önce), her sayfada 20 ürün. Pagination: page=0,1,2... size=20 (varsayılan).
+     *
+     * Örnek: GET /api/products/home?page=0&size=20
+     * Response: 200 OK + ProductSearchResultDto (content, totalElements, totalPages, size, number)
+     */
+    @GetMapping("/home")
+    public ResponseEntity<ProductSearchResultDto> getHomeFeed(
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        ProductSearchResultDto result = productService.getHomeFeed(pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 🔍 Search & Filter API
+     * GET /api/products/search
+     *
+     * Parametreler (hepsi opsiyonel, birleştirilebilir):
+     * - q: Ürün adı veya açıklamada aranacak metin (case-insensitive)
+     * - tagIds: Bu tag ID'lerinden birine ait ürünler (örn: tagIds=1&tagIds=2)
+     * - categoryPathPrefix: Tag categoryPath bu prefix ile başlayan ürünler (örn: Electronic.Telephone)
+     * - page: Sayfa numarası (0'dan başlar, varsayılan 0)
+     * - size: Sayfa boyutu (varsayılan 20)
+     *
+     * Örnek: GET /api/products/search?q=iphone&tagIds=5&tagIds=6&page=0&size=10
+     *
+     * Response: 200 OK + ProductSearchResultDto (content, totalElements, totalPages, size, number)
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ProductSearchResultDto> searchProducts(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<Long> tagIds,
+            @RequestParam(required = false) String categoryPathPrefix,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        ProductSearchResultDto result = productService.searchAndFilter(q, tagIds, categoryPathPrefix, pageable);
+        return ResponseEntity.ok(result);
     }
 
     /**
