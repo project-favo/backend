@@ -2,6 +2,7 @@ package com.favo.backend.Domain.review.Repository;
 
 import com.favo.backend.Domain.review.Review;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -61,5 +62,16 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("SELECT COUNT(r) FROM Review r " +
            "WHERE r.product.id = :productId AND r.isActive = true")
     Long countReviewsByProductId(@Param("productId") Long productId);
+
+    /**
+     * Kullanıcıya ait tüm review'ları getirir (aktif ve pasif)
+     * Admin cleanup işlemleri için kullanılır
+     */
+    @Query("SELECT r FROM Review r WHERE r.owner.id = :ownerId")
+    List<Review> findAllByOwnerId(@Param("ownerId") Long ownerId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Review r SET r.isActive = false")
+    int softDeleteAll();
 }
 
