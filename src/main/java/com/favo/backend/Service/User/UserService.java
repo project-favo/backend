@@ -1,5 +1,13 @@
 package com.favo.backend.Service.User;
 
+import com.favo.backend.Domain.interaction.ProductInteraction;
+import com.favo.backend.Domain.interaction.ReviewInteraction;
+import com.favo.backend.Domain.interaction.Repository.ProductInteractionRepository;
+import com.favo.backend.Domain.interaction.Repository.ReviewInteractionRepository;
+import com.favo.backend.Domain.review.Media;
+import com.favo.backend.Domain.review.Review;
+import com.favo.backend.Domain.review.Repository.MediaRepository;
+import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.ProfilePhoto;
 import com.favo.backend.Domain.user.Repository.ProfilePhotoRepository;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
@@ -11,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +28,10 @@ public class UserService {
 
     private final SystemUserRepository systemUserRepository;
     private final ProfilePhotoRepository profilePhotoRepository;
+    private final ReviewRepository reviewRepository;
+    private final MediaRepository mediaRepository;
+    private final ReviewInteractionRepository reviewInteractionRepository;
+    private final ProductInteractionRepository productInteractionRepository;
 
     /**
      * Kullanıcı profil bilgilerini günceller.
@@ -139,7 +152,6 @@ public class UserService {
     }
 
     public void deactivateUser(Long userId) {
-
         SystemUser user = systemUserRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -174,7 +186,6 @@ public class UserService {
      * @param user SecurityContext'ten gelen user
      */
     public void deactivateCurrentUser(SystemUser user) {
-        // User'ı database'den yeniden yükle (güncel state için)
         SystemUser currentUser = systemUserRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
@@ -182,5 +193,65 @@ public class UserService {
         currentUser.deactivate();
         
         systemUserRepository.save(currentUser);
+    }
+
+    /**
+     * Aktif olmayan kullanıcıları ve bağlantılarını fiziksel olarak siler
+     * Geçici metod - admin cleanup işlemleri için
+     * 
+     * Siler:
+     * - Aktif olmayan (isActive = false) SystemUser'lar
+     * - Bu kullanıcıların Review'ları (Media cascade ile silinir)
+     * - Bu kullanıcıların ReviewInteraction'ları
+     * - Bu kullanıcıların ProductInteraction'ları
+     * - Bu kullanıcıların ProfilePhoto'ları
+     * 
+     * @return Silinen kullanıcı sayısı
+     */
+    public int deleteInactiveUsersAndConnections() {
+        // Aktif olmayan tüm kullanıcıları bul
+        List<SystemUser> inactiveUsers = systemUserRepository.findAllInactiveUsers();
+        
+        int deletedCount = 0;
+        
+        for (SystemUser user : inactiveUsers) {
+            Long userId = user.getId();
+            
+            // 1. Kullanıcının Review'larını bul ve sil (Media cascade ile silinir)
+            List<Review> reviews = reviewRepository.findAllByOwnerId(userId);
+            for (Review review : reviews) {
+                // Review'ın Media'larını sil (cascade olmasına rağmen manuel silme daha güvenli)
+                List<Media> mediaList = review.getMediaList();
+                if (mediaList != null && !mediaList.isEmpty()) {
+                    mediaRepository.deleteAll(mediaList);
+                }
+                // Review'ı sil
+                reviewRepository.delete(review);
+            }
+            
+            // 2. Kullanıcının ReviewInteraction'larını bul ve sil
+            List<ReviewInteraction> reviewInteractions = reviewInteractionRepository.findAllByPerformerId(userId);
+            if (!reviewInteractions.isEmpty()) {
+                reviewInteractionRepository.deleteAll(reviewInteractions);
+            }
+            
+            // 3. Kullanıcının ProductInteraction'larını bul ve sil
+            List<ProductInteraction> productInteractions = productInteractionRepository.findAllByPerformerId(userId);
+            if (!productInteractions.isEmpty()) {
+                productInteractionRepository.deleteAll(productInteractions);
+            }
+            
+            // 4. Kullanıcının ProfilePhoto'larını bul ve sil
+            List<ProfilePhoto> profilePhotos = profilePhotoRepository.findAllByUserId(userId);
+            if (!profilePhotos.isEmpty()) {
+                profilePhotoRepository.deleteAll(profilePhotos);
+            }
+            
+            // 5. Kullanıcıyı sil
+            systemUserRepository.delete(user);
+            deletedCount++;
+        }
+        
+        return deletedCount;
     }
 }
