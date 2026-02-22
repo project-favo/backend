@@ -13,7 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -123,7 +122,7 @@ public class ProductService {
         Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 20);
         Page<Product> page = productRepository.searchAndFilter(
                 (q != null && !q.isBlank()) ? q.trim() : null,
-                safeTagIds != null ? safeTagIds : Collections.emptyList(),
+                safeTagIds,
                 (categoryPathPrefix != null && !categoryPathPrefix.isBlank()) ? categoryPathPrefix.trim() : null,
                 safePageable
         );

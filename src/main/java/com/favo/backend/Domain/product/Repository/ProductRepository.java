@@ -49,12 +49,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "LEFT JOIN FETCH t.parent " +
            "WHERE p.isActive = true " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
-           "AND (:tagIds IS NULL OR SIZE(:tagIds) = 0 OR p.tag.id IN :tagIds) " +
+           "AND (:tagIds IS NULL OR CAST(t.id AS long) IN :tagIds) " +
            "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))",
            countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.tag t " +
            "WHERE p.isActive = true " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
-           "AND (:tagIds IS NULL OR SIZE(:tagIds) = 0 OR p.tag.id IN :tagIds) " +
+           "AND (:tagIds IS NULL OR CAST(t.id AS long) IN :tagIds) " +
            "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))")
     Page<Product> searchAndFilter(
             @Param("q") String q,
