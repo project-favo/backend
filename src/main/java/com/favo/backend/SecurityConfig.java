@@ -74,8 +74,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll()
                         // Interaction POST endpoint'leri authenticated (sadece giriş yapmış kullanıcılar like yapabilir)
                         .requestMatchers(HttpMethod.POST, "/api/interactions/**").authenticated()
-                        // Admin cleanup endpoint'leri public (geçici - tek seferlik işlemler için)
-                        .requestMatchers("/api/admin/**").permitAll()
 
                         // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)
                         .anyRequest().authenticated()
