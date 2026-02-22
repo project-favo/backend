@@ -2,7 +2,6 @@ package com.favo.backend.Domain.product.Repository;
 
 import com.favo.backend.Domain.product.Tag;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,8 +19,7 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     
     // Child'ı olmayan tag'leri bul (leaf node'lar - sadece bunlara product bağlanabilir)
     @Query("SELECT t FROM Tag t WHERE t.isActive = true AND NOT EXISTS (SELECT 1 FROM Tag c WHERE c.parent = t AND c.isActive = true)")
-    List<Tag> findLeafTags();
-
+    List<Tag> findLeafTags(); // Child'ı olmayan aktif tag'ler
     
     /**
      * Tag'i aktif child'ları ile birlikte getir (N+1 query problemini önlemek için)
@@ -38,9 +36,5 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
      */
     @Query("SELECT t FROM Tag t WHERE t.isActive = true AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.categoryPath) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     List<Tag> searchTagsByName(@Param("searchTerm") String searchTerm);
-
-    @Modifying(clearAutomatically = true)
-    @Query("UPDATE Tag t SET t.isActive = false")
-    int softDeleteAll();
 }
 
