@@ -1,6 +1,7 @@
 package com.favo.backend.Security;
 
 import com.favo.backend.Domain.user.SystemUser;
+import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Firebase.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -79,7 +80,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
                 SystemUser user = authService.login(token);
                 String roleName = (user.getUserType() != null && user.getUserType().getName() != null)
                         ? user.getUserType().getName()
-                        : "ROLE_USER";
+                        : SecurityRoles.ROLE_USER;
                 
                 var auth = new FirebaseAuthenticationToken(
                         user,
@@ -115,7 +116,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             // authority'yi userType üzerinden bağla (ör: ROLE_USER / ROLE_ADMIN)
             String roleName = (user.getUserType() != null && user.getUserType().getName() != null)
                     ? user.getUserType().getName()
-                    : "ROLE_USER";
+                    : SecurityRoles.ROLE_USER;
 
             var auth = new FirebaseAuthenticationToken(
                     user,

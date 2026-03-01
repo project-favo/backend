@@ -1,6 +1,8 @@
 package com.favo.backend.Domain.review.Repository;
 
 import com.favo.backend.Domain.review.Review;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -61,5 +63,19 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("SELECT COUNT(r) FROM Review r " +
            "WHERE r.product.id = :productId AND r.isActive = true")
     Long countReviewsByProductId(@Param("productId") Long productId);
+
+    /** Admin: Tüm review'ları (aktif + pasif) product ve owner ile sayfalı getirir */
+    @Query(value = "SELECT DISTINCT r FROM Review r LEFT JOIN FETCH r.product p LEFT JOIN FETCH r.owner o ORDER BY r.id",
+           countQuery = "SELECT COUNT(r) FROM Review r")
+    Page<Review> findAllWithRelations(Pageable pageable);
+
+    /** Admin: Sadece aktif review'ları product ve owner ile sayfalı getirir */
+    @Query(value = "SELECT DISTINCT r FROM Review r LEFT JOIN FETCH r.product p LEFT JOIN FETCH r.owner o WHERE r.isActive = true ORDER BY r.id",
+           countQuery = "SELECT COUNT(r) FROM Review r WHERE r.isActive = true")
+    Page<Review> findActiveWithRelations(Pageable pageable);
+
+    /** Admin: ID ile review getirir (aktif/pasif fark etmez), product ve owner ile (media lazy) */
+    @Query("SELECT DISTINCT r FROM Review r LEFT JOIN FETCH r.product p LEFT JOIN FETCH r.owner o WHERE r.id = :id")
+    Optional<Review> findByIdWithRelationsForAdmin(@Param("id") Long id);
 }
 

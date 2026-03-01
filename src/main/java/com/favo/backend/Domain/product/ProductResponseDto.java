@@ -15,5 +15,7 @@ public class ProductResponseDto {
     private TagDto tag;
     private LocalDateTime createdAt;
     private Boolean isActive;
+    /** Beğenilme tarihi (sadece wishlist cevabında dolu) */
+    private LocalDateTime likedAt;
 }
 

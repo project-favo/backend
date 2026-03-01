@@ -20,7 +20,23 @@ public class ProductMapper {
                 product.getImageURL(),
                 tagDto,
                 product.getCreatedAt(),
-                product.getIsActive()
+                product.getIsActive(),
+                null
+        );
+    }
+
+    /** Wishlist için: ürün + beğenilme tarihi */
+    public static ProductResponseDto toDto(com.favo.backend.Domain.product.Product product, java.time.LocalDateTime likedAt) {
+        ProductResponseDto dto = toDto(product);
+        return new ProductResponseDto(
+                dto.getId(),
+                dto.getName(),
+                dto.getDescription(),
+                dto.getImageURL(),
+                dto.getTag(),
+                dto.getCreatedAt(),
+                dto.getIsActive(),
+                likedAt
         );
     }
 }

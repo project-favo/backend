@@ -8,6 +8,7 @@ import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.Repository.UserTypeRepository;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
+import com.favo.backend.Security.SecurityRoles;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,8 +106,8 @@ public class AuthService {
     private SystemUser registerNewUser(FirebaseUserInfo info, String userName, String name, String surname, LocalDate birthdate) {
         // 2️⃣ Business role
         UserType userType = userTypeRepository
-                .findByName("ROLE_USER")
-                .orElseThrow(() -> new RuntimeException("DEF UserType not found"));
+                .findByName(SecurityRoles.ROLE_USER)
+                .orElseThrow(() -> new RuntimeException("UserType " + SecurityRoles.ROLE_USER + " not found. Run application once to seed roles."));
 
         // 3️⃣ Polymorphic creation
         SystemUser user = new GeneralUser();

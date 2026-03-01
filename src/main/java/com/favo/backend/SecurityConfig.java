@@ -52,15 +52,22 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/me").authenticated()
-                        // Tag search, path, children ve create endpoint'leri authentication gerektirmez (public import için)
+                        // RBAC: Admin paneli endpoint'leri – sadece ROLE_ADMIN
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Product yazma (create/update/delete) sadece admin
+                        .requestMatchers(HttpMethod.POST, "/api/products").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                        // Tag yazma (create/delete) sadece admin
+                        .requestMatchers(HttpMethod.POST, "/api/tags").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/tags/**").hasRole("ADMIN")
+                        // Tag okuma public
                         .requestMatchers("/api/tags/search").permitAll()
                         .requestMatchers("/api/tags/path").permitAll()
                         .requestMatchers("/api/tags/*/children").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/tags/*").permitAll()  // Tag get by ID - wildcard kullanıyoruz
-                        .requestMatchers(HttpMethod.GET, "/api/tags").permitAll()  // Tag list - GET /api/tags
-                        .requestMatchers(HttpMethod.POST, "/api/tags").permitAll()  // Tag oluşturma için
-                        .requestMatchers(HttpMethod.DELETE, "/api/tags/*").permitAll()  // Geçici: Tag silme için
-                        // Product endpoint'leri authentication gerektirmez (test için, ileride admin kontrolü eklenecek)
+                        .requestMatchers(HttpMethod.GET, "/api/tags/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/tags").permitAll()
+                        // Product okuma public (GET)
                         .requestMatchers("/api/products/**").permitAll()
                         // My Reviews: sadece giriş yapmış kullanıcı kendi listesini alır
                         .requestMatchers(HttpMethod.GET, "/api/reviews/me").authenticated()

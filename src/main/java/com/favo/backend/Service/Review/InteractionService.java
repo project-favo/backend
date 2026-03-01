@@ -301,7 +301,7 @@ public class InteractionService {
         }
         Page<ProductInteraction> page = productInteractionRepository.findLikedProductsByPerformerId(userId, pageable);
         List<ProductResponseDto> content = page.getContent().stream()
-                .map(pi -> ProductMapper.toDto(pi.getTargetProduct()))
+                .map(pi -> ProductMapper.toDto(pi.getTargetProduct(), pi.getCreatedAt()))
                 .collect(Collectors.toList());
         return new ProductSearchResultDto(
                 content,
