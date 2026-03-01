@@ -104,6 +104,17 @@ public class ReviewService {
     }
 
     /**
+     * Giriş yapmış kullanıcının kendi review'larını getir (My Reviews).
+     * En yeni önce sıralı.
+     */
+    public List<ReviewResponseDto> getMyReviews(SystemUser user) {
+        if (user == null) {
+            throw new RuntimeException("Authentication required");
+        }
+        return getReviewsByUserId(user.getId(), user.getId());
+    }
+
+    /**
      * Review güncelle
      * Sadece review sahibi güncelleyebilir
      */

@@ -62,7 +62,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/tags/*").permitAll()  // Geçici: Tag silme için
                         // Product endpoint'leri authentication gerektirmez (test için, ileride admin kontrolü eklenecek)
                         .requestMatchers("/api/products/**").permitAll()
-                        // Review GET endpoint'leri public (herkes görebilir)
+                        // My Reviews: sadece giriş yapmış kullanıcı kendi listesini alır
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/me").authenticated()
+                        // Diğer Review GET endpoint'leri public (herkes görebilir)
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
                         // Media GET endpoint'leri public (review'lar public olduğu için media'lar da public)
                         .requestMatchers(HttpMethod.GET, "/api/media/**").permitAll()

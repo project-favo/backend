@@ -66,18 +66,31 @@ public class ReviewController {
     }
 
     /**
+     * 👤 Giriş yapmış kullanıcının kendi review'ları (My Reviews)
+     * GET /api/reviews/me
+     *
+     * Token zorunlu. En yeni önce sıralı.
+     * Response: 200 OK + List<ReviewResponseDto>
+     * Error: 401 Unauthorized - Token yoksa veya geçersizse
+     */
+    @GetMapping("/me")
+    public ResponseEntity<List<ReviewResponseDto>> getMyReviews(
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        List<ReviewResponseDto> reviews = reviewService.getMyReviews(user);
+        return ResponseEntity.ok(reviews);
+    }
+
+    /**
      * 📋 Tüm aktif review'ları getir
      * GET /api/reviews
-     * 
+     *
      * Response: 200 OK + List<ReviewResponseDto>
      */
     @GetMapping
     public ResponseEntity<List<ReviewResponseDto>> getAllReviews(
             @AuthenticationPrincipal SystemUser user
     ) {
-        // Tüm review'ları getirmek için product bazlı endpoint kullanılmalı
-        // Bu endpoint şimdilik boş liste döner veya kaldırılabilir
-        // user parametresi authentication için gereklidir (SecurityConfig'de tanımlı)
         return ResponseEntity.ok(List.of());
     }
 
