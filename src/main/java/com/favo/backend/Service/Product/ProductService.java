@@ -122,7 +122,8 @@ public class ProductService {
      * @param pageable Sayfa (page, size)
      */
     public ProductSearchResultDto searchAndFilter(String q, List<Long> tagIds, String categoryPathPrefix, Pageable pageable) {
-        List<Long> safeTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : new ArrayList<>();
+        // Boş liste yerine null geçiriyoruz; JPQL'de SIZE() Türkçe locale'de SQL'e "sıze" olarak çevriliyor ve MySQL'de yok
+        List<Long> safeTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : null;
         Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 6);
         String qTrimmed = (q != null && !q.isBlank()) ? q.trim() : null;
         String pathPrefix = (categoryPathPrefix != null && !categoryPathPrefix.isBlank()) ? categoryPathPrefix.trim() : null;
