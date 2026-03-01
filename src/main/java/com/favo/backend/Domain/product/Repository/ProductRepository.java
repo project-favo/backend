@@ -17,12 +17,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByIdAndIsActiveTrue(Long id);
 
     /**
-     * Ana sayfa: Aktif ürünleri oluşturulma tarihine göre (en yeni önce) sayfalı getir.
-     * Tag + parent fetch ile N+1 önlenir. Sayfa başına 20 ürün.
+     * Ana sayfa: Sayfa için sadece ID listesi (DISTINCT+FETCH sayfa kaymasını önlemek için).
+     * Sıra sabit: createdAt DESC, id ASC.
      */
-    @Query(value = "SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.isActive = true ORDER BY p.createdAt DESC",
+    @Query(value = "SELECT p.id FROM Product p WHERE p.isActive = true ORDER BY p.createdAt DESC, p.id ASC",
            countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
-    Page<Product> findActiveProductsOrderByCreatedAtDesc(Pageable pageable);
+    Page<Long> findActiveProductIdsOrderByCreatedAtDescIdAsc(Pageable pageable);
+
+    /**
+     * Verilen ID listesine göre ürünleri tag + parent ile getir (sıra korunmaz, service'de sıralanır).
+     */
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id IN :ids")
+    List<Product> findByIdInWithTagAndParent(@Param("ids") List<Long> ids);
 
     /**
      * Tag'e ait product'ları tag ve tag.parent bilgileri ile birlikte getir
@@ -40,9 +46,28 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     int softDeleteAll();
 
     /**
-     * Search & Filter: metin araması (name, description), tag filtresi, category path prefix.
-     * Parametreler boş/null ise o koşul uygulanmaz.
-     * countQuery fetch join içermez (sayfalama count için gerekli).
+     * Search & Filter: Sayfa için sadece ID listesi (sayfa kayması önlenir).
+     */
+    @Query(value = "SELECT p.id FROM Product p LEFT JOIN p.tag t " +
+           "WHERE p.isActive = true " +
+           "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+           "AND (:tagIds IS NULL OR CAST(SIZE(:tagIds) AS integer) = 0 OR CAST(t.id AS long) IN :tagIds) " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
+           "ORDER BY p.createdAt DESC, p.id ASC",
+           countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.tag t " +
+           "WHERE p.isActive = true " +
+           "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+           "AND (:tagIds IS NULL OR CAST(SIZE(:tagIds) AS integer) = 0 OR CAST(t.id AS long) IN :tagIds) " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))")
+    Page<Long> searchProductIds(
+            @Param("q") String q,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("categoryPathPrefix") String categoryPathPrefix,
+            Pageable pageable
+    );
+
+    /**
+     * Search & Filter: Eski tek sorgu (geriye dönük uyumluluk için tutuldu; sayfa kayması riski var).
      */
     @Query(value = "SELECT DISTINCT p FROM Product p " +
            "LEFT JOIN FETCH p.tag t " +
@@ -50,7 +75,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "WHERE p.isActive = true " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
            "AND (:tagIds IS NULL OR CAST(t.id AS long) IN :tagIds) " +
-           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))",
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
+           "ORDER BY p.createdAt DESC, p.id ASC",
            countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.tag t " +
            "WHERE p.isActive = true " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
