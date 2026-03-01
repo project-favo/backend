@@ -53,15 +53,16 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         // Health, Tag Search/Path/Children/Create ve Product endpointleri serbest: burada token zorlamıyoruz
         // Me endpoint'leri token gerektirir (yukarıda SecurityConfig'de authenticated() olarak işaretlendi)
         // GET endpoint'leri public (SecurityConfig'de permitAll() olarak işaretlendi) ama token varsa authentication yapılmalı
-        boolean isPublicEndpoint = path.equals("/api/health") ||
-            path.startsWith("/api/tags/search") ||
-            path.startsWith("/api/tags/path") ||
-            (path.equals("/api/tags") && "POST".equalsIgnoreCase(request.getMethod())) ||  // POST /api/tags
-            (path.matches("/api/tags/\\d+") && "DELETE".equalsIgnoreCase(request.getMethod())) ||  // DELETE /api/tags/{id}
-            path.matches("/api/tags/\\d+/children") ||  // /api/tags/{id}/children
-            path.startsWith("/api/products") ||
-            (path.startsWith("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod())) ||  // GET /api/reviews/** (public)
-            (path.startsWith("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()));  // GET /api/interactions/** (public)
+        // Path context path ile gelebilir (örn. /api/products/search veya /ctx/api/products/search); contains ile eşleştiriyoruz
+        boolean isPublicEndpoint = path.equals("/api/health") || path.contains("/api/health") ||
+            path.contains("/api/tags/search") ||
+            path.contains("/api/tags/path") ||
+            (path.endsWith("/api/tags") && "POST".equalsIgnoreCase(request.getMethod())) ||
+            (path.matches(".*/api/tags/\\d+") && "DELETE".equalsIgnoreCase(request.getMethod())) ||
+            path.matches(".*/api/tags/\\d+/children") ||
+            path.contains("/api/products") ||
+            (path.contains("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod())) ||
+            (path.contains("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()));
 
         // Public endpoint'ler için token yoksa veya geçersizse direkt geç (SecurityConfig'de permitAll() var)
         // Token varsa ve geçerliyse authentication yap (opsiyonel authentication)

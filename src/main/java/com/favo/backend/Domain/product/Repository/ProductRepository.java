@@ -51,13 +51,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query(value = "SELECT p.id FROM Product p LEFT JOIN p.tag t " +
            "WHERE p.isActive = true " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
-           "AND (:tagIds IS NULL OR CAST(SIZE(:tagIds) AS integer) = 0 OR CAST(t.id AS long) IN :tagIds) " +
+           "AND (:tagIds IS NULL OR CAST(t.id AS long) IN :tagIds) " +
            "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
            "ORDER BY p.createdAt DESC, p.id ASC",
            countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.tag t " +
            "WHERE p.isActive = true " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :q, '%'))) " +
-           "AND (:tagIds IS NULL OR CAST(SIZE(:tagIds) AS integer) = 0 OR CAST(t.id AS long) IN :tagIds) " +
+           "AND (:tagIds IS NULL OR CAST(t.id AS long) IN :tagIds) " +
            "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.categoryPath) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))")
     Page<Long> searchProductIds(
             @Param("q") String q,
