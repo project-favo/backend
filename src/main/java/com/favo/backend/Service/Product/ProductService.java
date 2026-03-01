@@ -13,8 +13,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -93,21 +97,21 @@ public class ProductService {
     }
 
     /**
-     * Ana sayfa feed: Sıradan ilk 20 ürün (en yeni önce), her sayfada 20 ürün, pagination.
+     * Ana sayfa feed: Önce sayfa ID'leri çekilir (sıra sabit), sonra entity'ler fetch join ile.
+     * Böylece Hibernate DISTINCT+FETCH sayfa kayması (1 ürün gelmesi) olmaz.
      */
     public ProductSearchResultDto getHomeFeed(Pageable pageable) {
-        Pageable safe = pageable != null ? pageable : PageRequest.of(0, 20);
-        Page<Product> page = productRepository.findActiveProductsOrderByCreatedAtDesc(safe);
-        List<ProductResponseDto> content = page.getContent().stream()
-                .map(ProductMapper::toDto)
-                .collect(Collectors.toList());
-        return new ProductSearchResultDto(
-                content,
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.getSize(),
-                page.getNumber()
-        );
+        Pageable safe = pageable != null ? pageable : PageRequest.of(0, 6);
+        Page<Long> idPage = productRepository.findActiveProductIdsOrderByCreatedAtDescIdAsc(safe);
+        List<Long> ids = idPage.getContent();
+        if (ids.isEmpty()) {
+            return new ProductSearchResultDto(List.of(), idPage.getTotalElements(), idPage.getTotalPages(), idPage.getSize(), idPage.getNumber());
+        }
+        List<Product> products = productRepository.findByIdInWithTagAndParent(ids);
+        Map<Long, Integer> order = IntStream.range(0, ids.size()).boxed().collect(Collectors.toMap(ids::get, i -> i));
+        products.sort(Comparator.comparingInt(p -> order.getOrDefault(p.getId(), 0)));
+        List<ProductResponseDto> content = products.stream().map(ProductMapper::toDto).collect(Collectors.toList());
+        return new ProductSearchResultDto(content, idPage.getTotalElements(), idPage.getTotalPages(), idPage.getSize(), idPage.getNumber());
     }
 
     /**
@@ -118,24 +122,20 @@ public class ProductService {
      * @param pageable Sayfa (page, size)
      */
     public ProductSearchResultDto searchAndFilter(String q, List<Long> tagIds, String categoryPathPrefix, Pageable pageable) {
-        List<Long> safeTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : null;
-        Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 20);
-        Page<Product> page = productRepository.searchAndFilter(
-                (q != null && !q.isBlank()) ? q.trim() : null,
-                safeTagIds,
-                (categoryPathPrefix != null && !categoryPathPrefix.isBlank()) ? categoryPathPrefix.trim() : null,
-                safePageable
-        );
-        List<ProductResponseDto> content = page.getContent().stream()
-                .map(ProductMapper::toDto)
-                .collect(Collectors.toList());
-        return new ProductSearchResultDto(
-                content,
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.getSize(),
-                page.getNumber()
-        );
+        List<Long> safeTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : new ArrayList<>();
+        Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 6);
+        String qTrimmed = (q != null && !q.isBlank()) ? q.trim() : null;
+        String pathPrefix = (categoryPathPrefix != null && !categoryPathPrefix.isBlank()) ? categoryPathPrefix.trim() : null;
+        Page<Long> idPage = productRepository.searchProductIds(qTrimmed, safeTagIds, pathPrefix, safePageable);
+        List<Long> ids = idPage.getContent();
+        if (ids.isEmpty()) {
+            return new ProductSearchResultDto(List.of(), idPage.getTotalElements(), idPage.getTotalPages(), idPage.getSize(), idPage.getNumber());
+        }
+        List<Product> products = productRepository.findByIdInWithTagAndParent(ids);
+        Map<Long, Integer> order = IntStream.range(0, ids.size()).boxed().collect(Collectors.toMap(ids::get, i -> i));
+        products.sort(Comparator.comparingInt(p -> order.getOrDefault(p.getId(), 0)));
+        List<ProductResponseDto> content = products.stream().map(ProductMapper::toDto).collect(Collectors.toList());
+        return new ProductSearchResultDto(content, idPage.getTotalElements(), idPage.getTotalPages(), idPage.getSize(), idPage.getNumber());
     }
 
     /**
