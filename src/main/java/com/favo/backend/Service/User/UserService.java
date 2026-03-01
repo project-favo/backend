@@ -139,13 +139,17 @@ public class UserService {
     }
 
     public void deactivateUser(Long userId) {
-
         SystemUser user = systemUserRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // 🔥 POLYMORPHIC CALL
         user.deactivate();
+        systemUserRepository.save(user);
+    }
 
+    /** Admin: Kullanıcıyı tekrar aktif eder */
+    public void activateUser(Long userId) {
+        SystemUser user = systemUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setIsActive(true);
         systemUserRepository.save(user);
     }
 

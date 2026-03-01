@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,7 +42,9 @@ public class ProductController {
      * 
      * Response: 201 Created + ProductResponseDto
      * Error: 400 Bad Request - Tag leaf tag değilse veya tag bulunamazsa
+     * RBAC: Sadece ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<ProductResponseDto> createProduct(@RequestBody ProductRequestDto request) {
         ProductResponseDto created = productService.createProduct(request);
@@ -148,8 +151,10 @@ public class ProductController {
      * Response: 200 OK + ProductResponseDto
      * Error: 404 Not Found - Product bulunamazsa
      * Error: 400 Bad Request - Tag leaf tag değilse
+     * RBAC: Sadece ADMIN.
      */
     /*
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponseDto> updateProduct(
             @PathVariable Long id,
@@ -169,7 +174,9 @@ public class ProductController {
      * 
      * Response: 204 No Content
      * Error: 404 Not Found - Product bulunamazsa veya zaten pasifse
+     * RBAC: Sadece ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);

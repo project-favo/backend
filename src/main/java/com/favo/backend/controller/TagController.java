@@ -6,6 +6,7 @@ import com.favo.backend.Service.Product.TagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,9 @@ public class TagController {
      * Yeni tag oluştur
      * POST /api/tags
      * Body: { "name": "Iphone13", "parentId": 5 } veya { "name": "Electronics" } (root tag için)
+     * RBAC: Sadece ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<TagDto> createTag(@RequestBody TagCreateRequest request) {
         TagDto created = tagService.createTag(request.getName(), request.getParentId());
@@ -176,7 +179,9 @@ public class TagController {
      * Trendyol API'sinden kategorileri import et
      * POST /api/tags/import/trendyol
      * Trendyol API'sinden tüm kategorileri çekip Tag'lere dönüştürür
+     * RBAC: Sadece ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/import/trendyol")
     public ResponseEntity<ImportResponse> importTrendyolCategories() {
         int importedCount = tagService.importTrendyolCategories();
@@ -186,9 +191,9 @@ public class TagController {
     /**
      * Tag'i soft delete yap (isActive = false)
      * DELETE /api/tags/{id}
-     * 
-     * Geçici endpoint - tag temizleme için
+     * RBAC: Sadece ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTag(@PathVariable Long id) {
         tagService.deleteTag(id);

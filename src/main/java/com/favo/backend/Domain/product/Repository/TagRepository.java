@@ -1,6 +1,8 @@
 package com.favo.backend.Domain.product.Repository;
 
 import com.favo.backend.Domain.product.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,5 +38,11 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
      */
     @Query("SELECT t FROM Tag t WHERE t.isActive = true AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.categoryPath) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     List<Tag> searchTagsByName(@Param("searchTerm") String searchTerm);
+
+    /** Admin: Tüm tag'leri sayfalı getirir (id artan) */
+    Page<Tag> findAllByOrderByIdAsc(Pageable pageable);
+
+    /** Admin: Sadece aktif tag'leri sayfalı getirir */
+    Page<Tag> findByIsActiveTrueOrderByIdAsc(Pageable pageable);
 }
 

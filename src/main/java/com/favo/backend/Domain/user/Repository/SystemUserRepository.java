@@ -1,6 +1,8 @@
 package com.favo.backend.Domain.user.Repository;
 
 import com.favo.backend.Domain.user.SystemUser;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,4 +47,18 @@ public interface SystemUserRepository
      */
     @Query("SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.id = :id AND u.isActive = true")
     Optional<SystemUser> findByIdWithUserType(@Param("id") Long id);
+
+    /** Admin: Tüm kullanıcıları (aktif + pasif) UserType ile sayfalı getirir */
+    @Query(value = "SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType ORDER BY u.id",
+           countQuery = "SELECT COUNT(u) FROM SystemUser u")
+    Page<SystemUser> findAllWithUserType(Pageable pageable);
+
+    /** Admin: Sadece aktif kullanıcıları UserType ile sayfalı getirir */
+    @Query(value = "SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.isActive = true ORDER BY u.id",
+           countQuery = "SELECT COUNT(u) FROM SystemUser u WHERE u.isActive = true")
+    Page<SystemUser> findActiveWithUserType(Pageable pageable);
+
+    /** Admin: ID ile kullanıcı getirir (aktif/pasif fark etmez), UserType ile */
+    @Query("SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.id = :id")
+    Optional<SystemUser> findByIdWithUserTypeForAdmin(@Param("id") Long id);
 }

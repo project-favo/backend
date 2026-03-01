@@ -88,5 +88,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("categoryPathPrefix") String categoryPathPrefix,
             Pageable pageable
     );
+
+    /** Admin: Tüm ürünleri (aktif + pasif) tag ile sayfalı getirir */
+    @Query(value = "SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent ORDER BY p.id",
+           countQuery = "SELECT COUNT(p) FROM Product p")
+    Page<Product> findAllWithTag(Pageable pageable);
+
+    /** Admin: Sadece aktif ürünleri tag ile sayfalı getirir */
+    @Query(value = "SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.isActive = true ORDER BY p.id",
+           countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
+    Page<Product> findActiveWithTag(Pageable pageable);
+
+    /** Admin: ID ile ürün getirir (aktif/pasif fark etmez), tag ile */
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id = :id")
+    Optional<Product> findByIdWithTagForAdmin(@Param("id") Long id);
 }
 
