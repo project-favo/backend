@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
-                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/register/multipart", "/api/health").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/login/admin", "/api/auth/register", "/api/auth/register/multipart", "/api/health").permitAll()
                         // Me endpoint'leri token gerektirir (authenticated user için - GET, PUT, DELETE)
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/me").authenticated()

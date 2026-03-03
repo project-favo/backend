@@ -1,9 +1,11 @@
 package com.favo.backend.controller;
 
 import com.favo.backend.Domain.user.*;
+import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Firebase.AuthService;
 import com.favo.backend.Service.User.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +23,7 @@ public class AuthController {
     private final UserMapper userMapper;
 
     /**
-     * 🔓 Firebase Login
+     * 🔓 Genel Firebase Login (User + Admin)
      * Authorization: Bearer <firebase-id-token>
      * Sadece daha önce register olmuş kullanıcılar için
      */
@@ -31,6 +33,26 @@ public class AuthController {
     ) {
         String token = authorization.replace("Bearer ", "").trim();
         SystemUser user = authService.login(token);
+        return ResponseEntity.ok(userMapper.toDto(user));
+    }
+
+    /**
+     * 🔐 Admin Login
+     * Sadece ROLE_ADMIN userType'ına sahip kullanıcılar başarılı döner.
+     * Normal kullanıcılar için 403 FORBIDDEN.
+     */
+    @PostMapping("/login/admin")
+    public ResponseEntity<UserResponseDto> adminLogin(
+            @RequestHeader("Authorization") String authorization
+    ) {
+        String token = authorization.replace("Bearer ", "").trim();
+        SystemUser user = authService.login(token);
+
+        String roleName = user.getUserType() != null ? user.getUserType().getName() : null;
+        if (!SecurityRoles.ROLE_ADMIN.equals(roleName)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         return ResponseEntity.ok(userMapper.toDto(user));
     }
 

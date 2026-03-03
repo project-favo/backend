@@ -176,16 +176,15 @@ public class TagController {
     }
 
     /**
-     * Trendyol API'sinden kategorileri import et
-     * POST /api/tags/import/trendyol
-     * Trendyol API'sinden tüm kategorileri çekip Tag'lere dönüştürür
-     * RBAC: Sadece ADMIN.
+     * Trendyol API'sinden kategori import endpoint'i PASİF.
+     * Artık Trendyol'dan tag import edilmiyor, bu endpoint 410 GONE döner.
      */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/import/trendyol")
     public ResponseEntity<ImportResponse> importTrendyolCategories() {
-        int importedCount = tagService.importTrendyolCategories();
-        return ResponseEntity.ok(new ImportResponse(importedCount, "Successfully imported " + importedCount + " categories from Trendyol"));
+        return ResponseEntity
+                .status(HttpStatus.GONE)
+                .body(new ImportResponse(0, "Trendyol import endpoint is disabled. Tags are no longer imported from Trendyol."));
     }
 
     /**
