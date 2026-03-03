@@ -26,7 +26,7 @@ public class ProductInteraction extends Interaction {
             // Bu, "Duplicate foreign key constraint name" hatasını önler
     )
     private Product targetProduct; // Hangi product'a interaction yapıldı
-
+ 
     @Column(name = "type", nullable = false, length = 50)
     private String type; // Örn: "LIKE", "WISHLIST", "RATING" vb.
 
