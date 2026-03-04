@@ -47,7 +47,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
-                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/register/multipart", "/api/health").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/login/admin", "/api/auth/register", "/api/auth/register/multipart", "/api/health").permitAll()
+                        // WebSocket handshake endpoint'i - auth, WebSocketAuthInterceptor içinde yapılır
+                        .requestMatchers("/ws/**").permitAll()
                         // Me endpoint'leri token gerektirir (authenticated user için - GET, PUT, DELETE)
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/me").authenticated()
@@ -83,6 +85,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll()
                         // Interaction POST endpoint'leri authenticated (sadece giriş yapmış kullanıcılar like yapabilir)
                         .requestMatchers(HttpMethod.POST, "/api/interactions/**").authenticated()
+                        // Messaging endpoint'leri: tümü authenticated kullanıcılar için
+                        .requestMatchers("/api/messages/**").authenticated()
+                        .requestMatchers("/ws-native/**").permitAll()
 
                         // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)
                         .anyRequest().authenticated()
