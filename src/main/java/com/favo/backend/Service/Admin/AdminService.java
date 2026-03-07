@@ -87,6 +87,22 @@ public class AdminService {
         return ProductMapper.toDto(product);
     }
 
+    /** Ürünü arayüzden kaldırır (soft delete). Sistemde kalır, isActive = false. */
+    public void deactivateProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        product.setIsActive(false);
+        productRepository.save(product);
+    }
+
+    /** Ürünü tekrar arayüzde gösterir (soft delete geri alınır). */
+    public void activateProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        product.setIsActive(true);
+        productRepository.save(product);
+    }
+
     // ---- Tags ----
     @Transactional(readOnly = true)
     public AdminPageDto<AdminTagDto> listTags(boolean activeOnly, Pageable pageable) {
