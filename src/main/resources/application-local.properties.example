@@ -1,0 +1,5 @@
+# Copy this file to application-local.properties and paste your OpenAI key.
+# application-local.properties is in .gitignore - do not commit it.
+# Run with: mvn spring-boot:run -Dspring.profiles.active=local
+
+openai.api.key=sk-proj-BURAYA_KEY_YAPIŞTIR
