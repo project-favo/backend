@@ -40,3 +40,6 @@ src/main/resources/firebase/*.json
 .env
 .env.local
 .env.*.local
+
+# Local config (OpenAI key etc.) - do not commit
+application-local.properties

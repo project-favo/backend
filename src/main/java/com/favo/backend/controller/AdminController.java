@@ -76,6 +76,26 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getProduct(id));
     }
 
+    /**
+     * Ürünü arayüzden kaldırır (soft delete). Sistemde kalır.
+     * PATCH /api/admin/products/{id}/deactivate
+     */
+    @PatchMapping("/products/{id}/deactivate")
+    public ResponseEntity<Void> deactivateProduct(@PathVariable Long id) {
+        adminService.deactivateProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Ürünü tekrar arayüzde gösterir.
+     * PATCH /api/admin/products/{id}/activate
+     */
+    @PatchMapping("/products/{id}/activate")
+    public ResponseEntity<Void> activateProduct(@PathVariable Long id) {
+        adminService.activateProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // ---- Tags ----
     /**
      * GET /api/admin/tags?page=0&size=20&activeOnly=false
