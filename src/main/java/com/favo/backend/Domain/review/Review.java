@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,4 +53,17 @@ public class Review extends BaseEntity {
     // Review'a yapılan interaction'lar (0..*)
     @OneToMany(mappedBy = "targetReview", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     private List<ReviewInteraction> interactions = new ArrayList<>();
+
+    @Column(name = "toxicity_score")
+    private Double toxicityScore;
+
+    @Column(name = "toxicity_checked_at")
+    private LocalDateTime toxicityCheckedAt;
+
+    @Column(name = "auto_flagged", nullable = false)
+    private Boolean autoFlagged = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "moderation_status", nullable = false, length = 32)
+    private ModerationStatus moderationStatus = ModerationStatus.PENDING;
 }
