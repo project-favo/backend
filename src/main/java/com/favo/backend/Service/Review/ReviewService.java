@@ -3,9 +3,11 @@ package com.favo.backend.Service.Review;
 import com.favo.backend.Domain.product.Product;
 import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.review.*;
+import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
+import com.favo.backend.Service.Moderation.ToxicityService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;
+    private final ToxicityService toxicityService;
+    private final ReviewFlagRepository reviewFlagRepository;
 
     /**
      * Yeni review oluştur
@@ -71,7 +75,36 @@ public class ReviewService {
         }
 
         Review saved = reviewRepository.save(review);
+        toxicityService.analyzeAndApplyAsync(saved.getId());
         return ReviewMapper.toDto(saved, generalUser.getId());
+    }
+
+    public FlagResponseDto flagReview(Long reviewId, GeneralUser user, FlagRequestDto request) {
+        Review review = reviewRepository.findByIdAndIsActiveTrue(reviewId)
+                .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
+
+        if (reviewFlagRepository.existsByReviewIdAndReportedByIdAndIsActiveTrue(reviewId, user.getId())) {
+            throw new RuntimeException("You have already flagged this review");
+        }
+
+        review.setModerationStatus(ModerationStatus.MANUALLY_FLAGGED);
+
+        ReviewFlag flag = new ReviewFlag();
+        flag.setReview(review);
+        flag.setReportedBy(user);
+        flag.setReason(request.getReason());
+        flag.setNotes(request.getNotes());
+        flag.setCreatedAt(LocalDateTime.now());
+        flag.setIsActive(true);
+
+        ReviewFlag saved = reviewFlagRepository.save(flag);
+        return new FlagResponseDto(
+                saved.getId(),
+                reviewId,
+                saved.getReason(),
+                saved.getNotes(),
+                saved.getCreatedAt()
+        );
     }
 
     /**

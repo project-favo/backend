@@ -33,8 +33,12 @@ build/
 .vscode/
 
 
-###JSON TOKEN###
+### Firebase / Google service account (never commit) ###
 src/main/resources/firebase/*.json
+**/firebase/**/*.json
+**/serviceAccountKey.json
+**/google-services.json
+**/GoogleService-Info.plist
 
 ### Environment Variables ###
 .env

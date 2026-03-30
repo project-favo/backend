@@ -22,5 +22,7 @@ public class ReviewResponseDto {
     private List<MediaResponseDto> mediaList;
     private Long likeCount; // Review'a yapılan like sayısı
     private Boolean isLikedByCurrentUser; // Mevcut kullanıcı bu review'ı beğenmiş mi?
+    private Double toxicityScore;
+    private ModerationStatus moderationStatus;
 }
 

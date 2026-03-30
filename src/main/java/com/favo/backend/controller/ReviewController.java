@@ -1,7 +1,10 @@
 package com.favo.backend.controller;
 
+import com.favo.backend.Domain.review.FlagRequestDto;
+import com.favo.backend.Domain.review.FlagResponseDto;
 import com.favo.backend.Domain.review.ReviewRequestDto;
 import com.favo.backend.Domain.review.ReviewResponseDto;
+import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.ReviewService;
 import lombok.RequiredArgsConstructor;
@@ -194,6 +197,23 @@ public class ReviewController {
     ) {
         reviewService.deleteReview(id, user);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Kullanıcının bir review'u raporlaması (flag).
+     * POST /api/reviews/{id}/flag
+     */
+    @PostMapping("/{id}/flag")
+    public ResponseEntity<FlagResponseDto> flagReview(
+            @PathVariable Long id,
+            @RequestBody FlagRequestDto request,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        if (!(user instanceof GeneralUser generalUser)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        FlagResponseDto dto = reviewService.flagReview(id, generalUser, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 }
 

@@ -46,7 +46,9 @@ public class ReviewMapper {
                 review.getOwner() != null ? review.getOwner().getUserName() : null,
                 mediaList,
                 likeCount,
-                isLikedByCurrentUser
+                isLikedByCurrentUser,
+                review.getToxicityScore(),
+                review.getModerationStatus()
         );
     }
 
