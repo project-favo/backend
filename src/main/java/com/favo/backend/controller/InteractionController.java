@@ -4,6 +4,7 @@ import com.favo.backend.Domain.product.ProductSearchResultDto;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.InteractionService;
 import com.favo.backend.Service.Review.ReviewService;
+import com.favo.backend.Service.User.UserFollowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +28,7 @@ public class InteractionController {
 
     private final InteractionService interactionService;
     private final ReviewService reviewService;
+    private final UserFollowService userFollowService;
 
     /**
      * ❤️ Review'a like/unlike yap
@@ -282,6 +284,82 @@ public class InteractionController {
         boolean isLiked = interactionService.isProductLikedByUser(productId, userId);
         log.info("isProductLiked result for productId: {}, userId: {}, isLiked: {}", productId, userId, isLiked);
         return ResponseEntity.ok(Map.of("isLiked", isLiked));
+    }
+
+    /**
+     * Kullanıcı takip / takipten çık (user_follow tablosu — product/review interaction'dan ayrı).
+     * POST /api/interactions/user/{userId}/follow
+     */
+    @PostMapping("/user/{userId}/follow")
+    public ResponseEntity<Map<String, Object>> toggleUserFollow(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "UNAUTHORIZED", "message", "User not authenticated"));
+            }
+            boolean following = userFollowService.toggleFollow(userId, user);
+            return ResponseEntity.ok(Map.of("following", following));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(400).body(Map.of("error", "BAD_REQUEST", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "INTERNAL_ERROR", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/user/{userId}/followers/count")
+    public ResponseEntity<?> getFollowerCount(@PathVariable Long userId) {
+        try {
+            long count = userFollowService.getFollowerCount(userId);
+            return ResponseEntity.ok(Map.of("count", count));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "NOT_FOUND", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/user/{userId}/following/count")
+    public ResponseEntity<?> getFollowingCount(@PathVariable Long userId) {
+        try {
+            long count = userFollowService.getFollowingCount(userId);
+            return ResponseEntity.ok(Map.of("count", count));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "NOT_FOUND", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/user/{userId}/followers")
+    public ResponseEntity<?> getFollowers(
+            @PathVariable Long userId,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        try {
+            return ResponseEntity.ok(userFollowService.getFollowers(userId, pageable));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "NOT_FOUND", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/user/{userId}/following")
+    public ResponseEntity<?> getFollowing(
+            @PathVariable Long userId,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        try {
+            return ResponseEntity.ok(userFollowService.getFollowing(userId, pageable));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "NOT_FOUND", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/user/{userId}/is-following")
+    public ResponseEntity<Map<String, Boolean>> isFollowing(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        Long currentId = user != null ? user.getId() : null;
+        boolean following = userFollowService.isFollowing(userId, currentId);
+        return ResponseEntity.ok(Map.of("following", following));
     }
 }
 

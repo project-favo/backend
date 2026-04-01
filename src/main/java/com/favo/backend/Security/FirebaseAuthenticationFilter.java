@@ -1,35 +1,38 @@
 package com.favo.backend.Security;
 
 import com.favo.backend.Domain.user.SystemUser;
-import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Firebase.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collections;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(FirebaseAuthenticationFilter.class);
+
     private final AuthService authService;
+
+    public FirebaseAuthenticationFilter(AuthService authService) {
+        this.authService = authService;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // CORS preflight (OPTIONS) isteklerinde Firebase doğrulaması yapmadan devam et
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
@@ -39,127 +42,124 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         boolean hasToken = header != null && header.startsWith("Bearer ");
 
-        // Login ve Register endpoint'leri token kontrolü yapmadan direkt geç (token'ı controller içinde handle ediyoruz)
-        // Register endpoint'inde kullanıcı henüz DB'de yok, bu yüzden authentication yapmamalıyız
-        // startsWith kullanarak hem /api/auth/register hem de /api/auth/register/multipart'i yakalıyoruz
-        boolean isAuthEndpoint = path.equals("/api/auth/login") ||
-                                 path.equals("/api/auth/login/admin") ||
-                                 path.startsWith("/api/auth/register");
-        
+        boolean isAuthEndpoint = path.equals("/api/auth/login")
+                || path.equals("/api/auth/login/admin")
+                || path.startsWith("/api/auth/register")
+                || path.equals("/api/auth/verify-email")
+                || path.equals("/api/auth/resend-verification");
+
         if (isAuthEndpoint) {
-            log.debug("Auth endpoint detected (login/register), skipping authentication filter: {}", path);
+            log.debug("Auth endpoint, skip filter: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Health, Tag Search/Path/Children/Create ve Product endpointleri serbest: burada token zorlamıyoruz
-        // Me endpoint'leri token gerektirir (yukarıda SecurityConfig'de authenticated() olarak işaretlendi)
-        // GET endpoint'leri public (SecurityConfig'de permitAll() olarak işaretlendi) ama token varsa authentication yapılmalı
-        // Path context path ile gelebilir (örn. /api/products/search veya /ctx/api/products/search); contains ile eşleştiriyoruz
-        boolean isPublicEndpoint = path.equals("/api/health") || path.contains("/api/health") ||
-            path.contains("/api/tags/search") ||
-            path.contains("/api/tags/path") ||
-            (path.endsWith("/api/tags") && "POST".equalsIgnoreCase(request.getMethod())) ||
-            (path.matches(".*/api/tags/\\d+") && "DELETE".equalsIgnoreCase(request.getMethod())) ||
-            path.matches(".*/api/tags/\\d+/children") ||
-            path.contains("/api/products") ||
-            (path.contains("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod())) ||
-            (path.contains("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()));
+        boolean isPublicEndpoint = path.equals("/api/health") || path.contains("/api/health")
+                || path.contains("/api/tags/search")
+                || path.contains("/api/tags/path")
+                || (path.endsWith("/api/tags") && "POST".equalsIgnoreCase(request.getMethod()))
+                || (path.matches(".*/api/tags/\\d+") && "DELETE".equalsIgnoreCase(request.getMethod()))
+                || path.matches(".*/api/tags/\\d+/children")
+                || path.contains("/api/products")
+                || (path.contains("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod()))
+                || (path.contains("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()));
 
-        // Public endpoint'ler için token yoksa veya geçersizse direkt geç (SecurityConfig'de permitAll() var)
-        // Token varsa ve geçerliyse authentication yap (opsiyonel authentication)
         if (isPublicEndpoint) {
             if (!hasToken) {
-                // Token yoksa direkt geç
                 filterChain.doFilter(request, response);
                 return;
             }
-            
-            // Token varsa authentication dene, ama başarısız olursa yine de geç (public endpoint)
-            String token = header.substring(7).trim();
+
+            String publicPathToken = extractBearerToken(header);
             try {
-                SystemUser user = authService.login(token);
-                String roleName = (user.getUserType() != null && user.getUserType().getName() != null)
-                        ? user.getUserType().getName()
-                        : SecurityRoles.ROLE_USER;
-                
-                var auth = new FirebaseAuthenticationToken(
+                SystemUser user = authService.login(publicPathToken);
+                String roleName = resolveRoleName(user);
+
+                FirebaseAuthenticationToken auth = new FirebaseAuthenticationToken(
                         user,
                         user.getFirebaseUid(),
-                        List.of(new SimpleGrantedAuthority(roleName))
+                        Collections.singletonList(new SimpleGrantedAuthority(roleName))
                 );
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                log.debug("Optional authentication successful for public endpoint: {}", path);
+                log.debug("Optional auth OK for public path: {}", path);
             } catch (Exception ex) {
-                // Token geçersiz ama public endpoint, yine de geç
-                log.debug("Token invalid for public endpoint, continuing without authentication: {}", path);
+                log.debug("Optional auth skipped for public path: {}", path);
             }
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Token yoksa ve endpoint authenticated gerektiriyorsa -> SecurityConfig "authenticated()" dediği için sonra 401 dönecek
         if (!hasToken) {
-            log.debug("No Authorization header found for path: {}", path);
+            log.debug("No Authorization for path: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7).trim();
+        String bearerToken = extractBearerToken(header);
         log.info("Processing authentication for path: {}", path);
 
         try {
-            // 🔥 burada sadece LOGIN çalışır: verify + DB'de aktif user bul
-            SystemUser user = authService.login(token);
-            log.info("User authenticated successfully: userId={}, firebaseUid={}, isActive={}", 
-                user.getId(), user.getFirebaseUid(), user.getIsActive());
+            SystemUser user = authService.login(bearerToken);
+            log.info("User authenticated: userId={}, firebaseUid={}, isActive={}",
+                    user.getId(), user.getFirebaseUid(), user.getIsActive());
 
-            // authority'yi userType üzerinden bağla (ör: ROLE_USER / ROLE_ADMIN)
-            String roleName = (user.getUserType() != null && user.getUserType().getName() != null)
-                    ? user.getUserType().getName()
-                    : SecurityRoles.ROLE_USER;
+            String roleName = resolveRoleName(user);
 
-            var auth = new FirebaseAuthenticationToken(
+            FirebaseAuthenticationToken auth = new FirebaseAuthenticationToken(
                     user,
                     user.getFirebaseUid(),
-                    List.of(new SimpleGrantedAuthority(roleName))
+                    Collections.singletonList(new SimpleGrantedAuthority(roleName))
             );
 
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.info("Authentication set in SecurityContext for user: {}, role: {}", user.getId(), roleName);
-            
-            // SecurityContext'in doğru set edildiğini kontrol et
-            var contextAuth = SecurityContextHolder.getContext().getAuthentication();
+            log.info("SecurityContext set for user: {}, role: {}", user.getId(), roleName);
+
+            Authentication contextAuth = SecurityContextHolder.getContext().getAuthentication();
             if (contextAuth == null || !contextAuth.isAuthenticated()) {
-                log.error("SecurityContext authentication is null or not authenticated after setting!");
+                log.error("SecurityContext not authenticated after set");
             } else {
-                log.info("SecurityContext authentication verified: authenticated={}, principal={}", 
-                    contextAuth.isAuthenticated(), 
-                    contextAuth.getPrincipal() != null ? contextAuth.getPrincipal().getClass().getSimpleName() : "NULL");
+                String principalName = "none";
+                if (contextAuth.getPrincipal() != null) {
+                    principalName = contextAuth.getPrincipal().getClass().getSimpleName();
+                }
+                log.info("SecurityContext OK: authenticated={}, principal={}",
+                        contextAuth.isAuthenticated(), principalName);
             }
 
         } catch (Exception ex) {
-            // token invalid / kullanıcı pasif vs.
-            log.error("Authentication failed for path: {} - Error: {}", path, ex.getMessage(), ex);
+            log.error("Authentication failed for path: {} - {}", path, ex.getMessage(), ex);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
             try {
-                response.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"" + 
-                    ex.getMessage().replace("\"", "\\\"") + "\"}");
+                String msg = ex.getMessage() != null ? ex.getMessage().replace("\"", "\\\"") : "";
+                response.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"" + msg + "\"}");
                 response.getWriter().flush();
             } catch (IOException e) {
                 log.error("Failed to write error response", e);
-            }   
+            }
             return;
         }
 
         filterChain.doFilter(request, response);
-        
-        // Filter chain'den sonra authentication'ın hala var olup olmadığını kontrol et
-        var afterAuth = SecurityContextHolder.getContext().getAuthentication();
+
+        Authentication afterAuth = SecurityContextHolder.getContext().getAuthentication();
         if (afterAuth == null || !afterAuth.isAuthenticated()) {
-            log.warn("SecurityContext authentication lost after filter chain! Path: {}", path);
+            log.warn("SecurityContext lost after chain, path: {}", path);
         }
+    }
+
+    private static String resolveRoleName(SystemUser user) {
+        if (user.getUserType() != null && user.getUserType().getName() != null) {
+            return user.getUserType().getName();
+        }
+        return SecurityRoles.ROLE_USER;
+    }
+
+    private static String extractBearerToken(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.length() <= 7) {
+            return "";
+        }
+        return authorizationHeader.substring(7).trim();
     }
 }

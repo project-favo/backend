@@ -138,7 +138,7 @@ public class PersonalizedChatService {
             sb.append(parts.isEmpty() ? "none" : String.join("; ", parts)).append(".\n");
         }
 
-        List<UserFollow> follows = userFollowRepository.findByFollowerIdAndIsActiveTrueOrderByCreatedAtDesc(
+        List<UserFollow> follows = userFollowRepository.findByFollower_IdAndIsActiveTrueOrderByCreatedAtDesc(
                 gu.getId(),
                 PageRequest.of(0, MAX_FOLLOWS)
         );

@@ -40,6 +40,12 @@ public abstract class SystemUser extends BaseEntity {
     @Column(name = "birthdate")
     private LocalDate birthdate;
 
+    /**
+     * null = eski kayıtlar (doğrulanmış sayılır). false = kayıt sonrası kod bekleniyor.
+     */
+    @Column(name = "email_verified")
+    private Boolean emailVerified;
+
     // isActive -> BaseEntity'den geliyor
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
