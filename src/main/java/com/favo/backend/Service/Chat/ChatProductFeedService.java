@@ -459,7 +459,7 @@ public class ChatProductFeedService {
         }
         List<Product> found = productRepository.findByIdInWithTagAndParent(ids);
         Map<Long, Product> byId = found.stream().collect(Collectors.toMap(Product::getId, p -> p));
-        return ids.stream().map(byId::get).filter(Objects::nonNull).toList();
+        return new ArrayList<>(ids.stream().map(byId::get).filter(Objects::nonNull).toList());
     }
 
     private List<ChatProductCardDto> toCardList(List<Product> products, boolean preferHighRated) {
