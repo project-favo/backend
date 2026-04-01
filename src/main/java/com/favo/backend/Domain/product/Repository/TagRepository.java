@@ -50,5 +50,9 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
      */
     @Query("SELECT DISTINCT t FROM Tag t LEFT JOIN FETCH t.parent WHERE t.isActive = true ORDER BY t.categoryPath")
     List<Tag> findAllActiveWithParentOrderByCategoryPath();
+
+    /** Verilen path ile başlayan tüm aktif tag id'leri (alt ağaç; ürünler leaf tag'lere bağlı). */
+    @Query("SELECT t.id FROM Tag t WHERE t.isActive = true AND LOWER(t.categoryPath) LIKE LOWER(CONCAT(:pathPrefix, '%'))")
+    List<Long> findActiveTagIdsUnderPathPrefix(@Param("pathPrefix") String pathPrefix);
 }
 

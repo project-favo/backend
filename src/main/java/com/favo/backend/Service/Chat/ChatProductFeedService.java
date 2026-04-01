@@ -48,6 +48,8 @@ public class ChatProductFeedService {
         PHRASE_TO_SEARCH_Q.put("dizüstü bilgisayar", "laptop");
         PHRASE_TO_SEARCH_Q.put("cep telefonu", "telefon");
         PHRASE_TO_SEARCH_Q.put("akıllı telefon", "telefon");
+        PHRASE_TO_SEARCH_Q.put("akıllı saat", "smartwatch");
+        PHRASE_TO_SEARCH_Q.put("akilli saat", "smartwatch");
         PHRASE_TO_SEARCH_Q.put("smart phone", "smartphone");
         PHRASE_TO_SEARCH_Q.put("t-shirt", "shirt");
         PHRASE_TO_SEARCH_Q.put("gaming laptop", "gaming laptop");
@@ -157,12 +159,13 @@ public class ChatProductFeedService {
 
         boolean preferHighRated = wantsHighRated(userMessage);
 
-        List<String> searchQueries = extractSearchQueriesOrdered(userMessage);
+        List<String> searchQueries = mergeQueriesWithIntent(userMessage);
         if (!searchQueries.isEmpty()) {
-            List<ChatProductCardDto> fromSearch = buildFromSearchQueries(searchQueries, preferHighRated);
+            List<ChatProductCardDto> fromSearch = buildFromSearchQueries(searchQueries, userMessage, preferHighRated);
             if (!fromSearch.isEmpty()) {
                 return fromSearch;
             }
+            return List.of();
         }
 
         if (user instanceof GeneralUser gu && wantsLikesBasedRecommendation(userMessage)) {
@@ -172,13 +175,50 @@ public class ChatProductFeedService {
         return buildGenericNewest(user, userMessage, preferHighRated);
     }
 
+    /** Önce saat/telefon gibi sabit niyetler, sonra çıkarılmış terimler (tekrarsız). */
+    private static List<String> mergeQueriesWithIntent(String message) {
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<String> out = new ArrayList<>();
+        for (String s : intentBootstrapQueries(message)) {
+            tryAddQuery(s, seen, out);
+        }
+        for (String s : extractSearchQueriesOrdered(message)) {
+            tryAddQuery(s, seen, out);
+        }
+        return out;
+    }
+
+    private static List<String> intentBootstrapQueries(String message) {
+        List<String> list = new ArrayList<>();
+        String tr = message.toLowerCase(LOCALE_TR);
+        String en = message.toLowerCase(Locale.ROOT);
+        boolean watch = tr.contains("akıllı saat") || tr.contains("akilli saat")
+                || en.contains("smartwatch") || en.contains("smart watch")
+                || (tr.contains("saat") && (tr.contains("akıllı") || tr.contains("akilli")));
+        boolean phone = !watch && (tr.contains("akıllı telefon") || tr.contains("akilli telefon")
+                || tr.contains("cep telefon") || en.contains("smartphone") || en.contains("iphone")
+                || tr.contains("iphone")
+                || ((tr.contains("telefon") || (en.contains("phone") && !en.contains("headphone")
+                && !en.contains("microphone") && !en.contains("smartwatch")))));
+        if (watch) {
+            list.add("smartwatch");
+        } else if (phone) {
+            list.add("smartphone");
+        }
+        boolean applePhone = phone && (en.contains("apple") || tr.contains("apple"));
+        if (applePhone) {
+            list.add(0, "iphone");
+        }
+        return list;
+    }
+
     /** Sırayla dene: ilk anlamlı sonuç dönene kadar. */
-    private List<ChatProductCardDto> buildFromSearchQueries(List<String> queries, boolean preferHighRated) {
+    private List<ChatProductCardDto> buildFromSearchQueries(List<String> queries, String userMessage, boolean preferHighRated) {
         for (String q : queries) {
             if (q == null || q.isBlank()) {
                 continue;
             }
-            List<ChatProductCardDto> found = buildFromSearchQuery(q.trim(), preferHighRated);
+            List<ChatProductCardDto> found = buildFromSearchQuery(q.trim(), userMessage, preferHighRated);
             if (!found.isEmpty()) {
                 return found;
             }
@@ -186,17 +226,38 @@ public class ChatProductFeedService {
         return List.of();
     }
 
-    /** İsim / açıklama LIKE + gerekirse tag yolu ile eşleşen ürünler */
-    private List<ChatProductCardDto> buildFromSearchQuery(String q, boolean preferHighRated) {
-        Page<Long> page = productRepository.searchProductIds(q, null, null, PageRequest.of(0, CANDIDATE_POOL));
-        List<Long> ids = new ArrayList<>(page.getContent());
+    /**
+     * Önce tag alt ağacı (categoryPath prefix) ile daraltır; isim+açıklama LIKE ile kesiştirilir.
+     * Saat/telefon niyetinde kitap vb. yanlış kategoriler skor ile elenir.
+     */
+    private List<ChatProductCardDto> buildFromSearchQuery(String q, String userMessage, boolean preferHighRated) {
+        Set<Long> subtreeTagIds = resolveSubtreeTagIdsForLiteral(q);
+        List<Long> tagList = new ArrayList<>(subtreeTagIds);
+        if (tagList.size() > 200) {
+            tagList = new ArrayList<>(tagList.subList(0, 200));
+        }
+
+        List<Long> ids = new ArrayList<>();
+        if (!tagList.isEmpty()) {
+            Page<Long> scoped = productRepository.searchProductIds(q, tagList, null, PageRequest.of(0, CANDIDATE_POOL));
+            ids.addAll(scoped.getContent());
+            if (ids.isEmpty()) {
+                scoped = productRepository.searchProductIds(null, tagList, null, PageRequest.of(0, CANDIDATE_POOL));
+                ids.addAll(scoped.getContent());
+            }
+        }
+
+        if (ids.isEmpty()) {
+            Page<Long> page = productRepository.searchProductIds(q, null, null, PageRequest.of(0, CANDIDATE_POOL));
+            ids.addAll(page.getContent());
+        }
 
         if (ids.isEmpty()) {
             List<Tag> tags = tagRepository.searchTagsByName(q);
             if (!tags.isEmpty()) {
-                List<Long> tagIds = tags.stream().map(Tag::getId).distinct().limit(MAX_TAG_IDS).toList();
-                page = productRepository.searchProductIds(null, tagIds, null, PageRequest.of(0, CANDIDATE_POOL));
-                ids = new ArrayList<>(page.getContent());
+                List<Long> fallbackTagIds = tags.stream().map(Tag::getId).distinct().limit(MAX_TAG_IDS).toList();
+                Page<Long> page = productRepository.searchProductIds(null, fallbackTagIds, null, PageRequest.of(0, CANDIDATE_POOL));
+                ids.addAll(page.getContent());
             }
         }
 
@@ -204,8 +265,119 @@ public class ChatProductFeedService {
             return List.of();
         }
 
-        List<Product> ordered = loadProductsPreservingOrder(ids);
-        return toCardList(ordered, preferHighRated);
+        boolean watchAsk = messageImpliesWatch(userMessage);
+        boolean phoneAsk = messageImpliesPhone(userMessage);
+
+        List<Product> products = loadProductsPreservingOrder(ids);
+        products.sort(Comparator.comparing((Product p) -> relevanceScore(p, q, watchAsk, phoneAsk)).reversed());
+
+        if (watchAsk || phoneAsk) {
+            List<Product> filtered = products.stream()
+                    .filter(p -> relevanceScore(p, q, watchAsk, phoneAsk) > -500)
+                    .collect(Collectors.toList());
+            if (!filtered.isEmpty()) {
+                products = filtered;
+            }
+        }
+
+        return toCardList(products, preferHighRated);
+    }
+
+    private Set<Long> resolveSubtreeTagIdsForLiteral(String literal) {
+        Set<Long> out = new LinkedHashSet<>();
+        if (literal == null || literal.isBlank()) {
+            return out;
+        }
+        for (Tag t : tagRepository.searchTagsByName(literal.trim())) {
+            if (t.getCategoryPath() != null && !t.getCategoryPath().isBlank()) {
+                out.addAll(tagRepository.findActiveTagIdsUnderPathPrefix(t.getCategoryPath()));
+            } else {
+                out.add(t.getId());
+            }
+            if (out.size() > 250) {
+                break;
+            }
+        }
+        return out;
+    }
+
+    private static boolean messageImpliesWatch(String message) {
+        if (message == null) {
+            return false;
+        }
+        String tr = message.toLowerCase(LOCALE_TR);
+        String en = message.toLowerCase(Locale.ROOT);
+        return tr.contains("akıllı saat") || tr.contains("akilli saat")
+                || en.contains("smartwatch") || en.contains("smart watch")
+                || (tr.contains("saat") && (tr.contains("akıllı") || tr.contains("akilli")));
+    }
+
+    private static boolean messageImpliesPhone(String message) {
+        if (message == null) {
+            return false;
+        }
+        if (messageImpliesWatch(message)) {
+            return false;
+        }
+        String tr = message.toLowerCase(LOCALE_TR);
+        String en = message.toLowerCase(Locale.ROOT);
+        return tr.contains("akıllı telefon") || tr.contains("akilli telefon") || tr.contains("cep telefon")
+                || en.contains("smartphone") || en.contains("iphone") || tr.contains("iphone")
+                || tr.contains("telefon")
+                || (en.contains("phone") && !en.contains("headphone") && !en.contains("microphone"));
+    }
+
+    private static int relevanceScore(Product p, String q, boolean watchAsk, boolean phoneAsk) {
+        String path = "";
+        String tagName = "";
+        if (p.getTag() != null) {
+            if (p.getTag().getCategoryPath() != null) {
+                path = p.getTag().getCategoryPath().toLowerCase(Locale.ROOT);
+            }
+            if (p.getTag().getName() != null) {
+                tagName = p.getTag().getName().toLowerCase(Locale.ROOT);
+            }
+        }
+        String name = p.getName() != null ? p.getName().toLowerCase(Locale.ROOT) : "";
+        String desc = p.getDescription() != null ? p.getDescription().toLowerCase(Locale.ROOT) : "";
+        String qL = q.toLowerCase(Locale.ROOT);
+
+        if (watchAsk && (path.contains("book") || path.contains("clothing"))) {
+            return -1000;
+        }
+        if (phoneAsk && (path.contains("book") || path.contains("clothing"))) {
+            return -1000;
+        }
+        if (phoneAsk && (path.contains("tablet") || path.contains("ipad") || tagName.contains("tablet"))) {
+            if (!name.contains("iphone") && !name.contains("galaxy s") && !name.contains("pixel")) {
+                return -300;
+            }
+        }
+        if (phoneAsk && (path.contains("headphone") || path.contains("airpod") || path.contains("earbud")
+                || path.contains("beats"))) {
+            return -300;
+        }
+        if (watchAsk && path.contains("watch")) {
+            return 100 + (name.contains(qL) ? 40 : 0);
+        }
+        if (phoneAsk && path.contains("smartphone")) {
+            return 100 + (name.contains(qL) ? 40 : 0);
+        }
+
+        int s = 0;
+        if (path.contains(qL)) {
+            s += 60;
+        }
+        if (tagName.contains(qL)) {
+            s += 50;
+        }
+        if (name.contains(qL)) {
+            s += 35;
+        }
+        if (desc.contains(qL)) {
+            s += 10;
+        }
+        return s;
     }
 
     /** Sadece kullanıcı açıkça “beğendiklerime göre” dediyse */
