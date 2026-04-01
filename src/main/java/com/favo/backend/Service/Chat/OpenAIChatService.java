@@ -5,33 +5,37 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.favo.backend.Domain.chat.ChatResponse;
-import lombok.RequiredArgsConstructor;
+import com.favo.backend.Domain.chat.OpenAiChatTurn;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
+
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OpenAIChatService {
 
     private static final String OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
     private static final String MODEL = "gpt-4.1-mini";
 
-    /** Bot sadece Favo uygulamasına özel yardım etsin; uygulama bilgisi burada veriliyor. */
-    private static final String SYSTEM_PROMPT =
+    /**
+     * Base instructions; {@link com.favo.backend.Service.Chat.PersonalizedChatService} appends user-specific context.
+     */
+    public static final String BASE_SYSTEM_PROMPT =
             "You are the in-app support assistant for Favo. Favo is a mobile app where users discover products, "
-            + "read and write reviews, and like products.\n\n"
-            + "How Favo works (use this to give accurate help):\n"
-            + "- Home: Top 10 products carousel, category chips (All + categories), product grid. Tap a product to open its detail.\n"
-            + "- Bottom navigation: Home, Search, Add, Favorites, Profile.\n"
-            + "- Product detail (Review page): product info, reviews list, option to write a review or like the product.\n"
-            + "- Search: use the search icon in the bottom bar to search products.\n"
-            + "- Profile: view/edit profile, settings, change password, delete account.\n"
-            + "- Only help with Favo features. Do not suggest other shopping sites or platforms. "
-            + "Keep answers short and clear. Reply in the same language the user writes in.";
+                    + "read and write reviews, follow other users, and like products.\n\n"
+                    + "How Favo works (use this to give accurate help):\n"
+                    + "- Home: Top 10 products carousel, category chips (All + categories), product grid. Tap a product to open its detail.\n"
+                    + "- Bottom navigation: Home, Search, Add, Favorites, Profile.\n"
+                    + "- Product detail (Review page): product info, reviews list, option to write a review or like the product.\n"
+                    + "- Search: use the search icon in the bottom bar to search products.\n"
+                    + "- Profile: view/edit profile, settings, change password, delete account.\n"
+                    + "- Only help with Favo features. Do not suggest other shopping sites or platforms. "
+                    + "Keep answers short and clear. Reply in the same language the user writes in.\n"
+                    + "Use the personalized context below when it helps (preferences, recent activity), but do not reveal private data of other users.";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -39,7 +43,10 @@ public class OpenAIChatService {
     @Value("${openai.api.key:}")
     private String apiKey;
 
-    public ChatResponse chat(String userMessage) {
+    /**
+     * Sends system prompt + prior turns (oldest first) + the new user message to OpenAI.
+     */
+    public ChatResponse completeConversation(String fullSystemPrompt, List<OpenAiChatTurn> priorTurnsOldestFirst, String newUserMessage) {
         if (apiKey == null || apiKey.isBlank()) {
             log.error("OpenAI API key is not set. Set OPENAI_API_KEY env or openai.api.key property.");
             throw new IllegalStateException("CHATBOT_NOT_CONFIGURED");
@@ -48,14 +55,24 @@ public class OpenAIChatService {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", MODEL);
         ArrayNode messages = objectMapper.createArrayNode();
+
         ObjectNode systemMsg = objectMapper.createObjectNode();
         systemMsg.put("role", "system");
-        systemMsg.put("content", SYSTEM_PROMPT);
+        systemMsg.put("content", fullSystemPrompt);
         messages.add(systemMsg);
+
+        for (OpenAiChatTurn turn : priorTurnsOldestFirst) {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("role", turn.role());
+            node.put("content", turn.content());
+            messages.add(node);
+        }
+
         ObjectNode userMsg = objectMapper.createObjectNode();
         userMsg.put("role", "user");
-        userMsg.put("content", userMessage);
+        userMsg.put("content", newUserMessage);
         messages.add(userMsg);
+
         body.set("messages", messages);
 
         HttpHeaders headers = new HttpHeaders();
