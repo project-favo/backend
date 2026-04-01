@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.favo.backend.Domain.chat.ChatResponse;
 import com.favo.backend.Domain.chat.OpenAiChatTurn;
+
+import java.util.ArrayList;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -99,7 +101,7 @@ public class OpenAIChatService {
                 throw new RuntimeException("CHATBOT_ERROR");
             }
             String content = choices.get(0).path("message").path("content").asText("");
-            return new ChatResponse(content);
+            return new ChatResponse(content, new ArrayList<>());
         } catch (Exception e) {
             log.error("Failed to parse OpenAI response", e);
             throw new RuntimeException("CHATBOT_ERROR", e);

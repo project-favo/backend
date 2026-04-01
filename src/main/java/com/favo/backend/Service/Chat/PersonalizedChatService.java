@@ -2,6 +2,7 @@ package com.favo.backend.Service.Chat;
 
 import com.favo.backend.Domain.chat.AiChatMessage;
 import com.favo.backend.Domain.chat.AiChatRole;
+import com.favo.backend.Domain.chat.ChatProductCardDto;
 import com.favo.backend.Domain.chat.ChatResponse;
 import com.favo.backend.Domain.chat.OpenAiChatTurn;
 import com.favo.backend.Domain.chat.Repository.AiChatMessageRepository;
@@ -39,6 +40,12 @@ public class PersonalizedChatService {
     private final ReviewRepository reviewRepository;
     private final AiChatMessageRepository aiChatMessageRepository;
     private final OpenAIChatService openAIChatService;
+    private final ChatProductFeedService chatProductFeedService;
+
+    private static final String CAROUSEL_SYSTEM_HINT =
+            "\n\nA product carousel with real items from our database will appear below your message in the app. "
+                    + "Keep the reply short (1–3 sentences). You may reference categories the user likes; "
+                    + "do not invent product names that are not in the context above.";
 
     @Transactional
     public ChatResponse chat(SystemUser principal, String userMessage) {
@@ -47,11 +54,15 @@ public class PersonalizedChatService {
         List<OpenAiChatTurn> priorTurns = loadPriorTurnsChronological(user.getId());
         String personalizationBlock = buildPersonalizationBlock(user);
 
+        List<ChatProductCardDto> productFeed = chatProductFeedService.buildFeed(user, userMessage);
+
         String fullSystem = OpenAIChatService.BASE_SYSTEM_PROMPT
                 + "\n\n--- Personalized context (do not quote verbatim; use to tailor help) ---\n"
-                + personalizationBlock;
+                + personalizationBlock
+                + (productFeed.isEmpty() ? "" : CAROUSEL_SYSTEM_HINT);
 
         ChatResponse response = openAIChatService.completeConversation(fullSystem, priorTurns, userMessage);
+        response.setProducts(productFeed);
 
         persistMessage(user, AiChatRole.USER, userMessage);
         persistMessage(user, AiChatRole.ASSISTANT, response.getReply());
