@@ -44,5 +44,11 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     /** Admin: Sadece aktif tag'leri sayfalı getirir */
     Page<Tag> findByIsActiveTrueOrderByIdAsc(Pageable pageable);
+
+    /**
+     * Aktif tüm tag'ler (parent ile) — chat / prompt için kategori ağacı metni üretmek için.
+     */
+    @Query("SELECT DISTINCT t FROM Tag t LEFT JOIN FETCH t.parent WHERE t.isActive = true ORDER BY t.categoryPath")
+    List<Tag> findAllActiveWithParentOrderByCategoryPath();
 }
 

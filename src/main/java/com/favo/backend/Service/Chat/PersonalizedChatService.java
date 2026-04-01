@@ -9,6 +9,8 @@ import com.favo.backend.Domain.chat.Repository.AiChatMessageRepository;
 import com.favo.backend.Domain.interaction.ProductInteraction;
 import com.favo.backend.Domain.interaction.Repository.ProductInteractionRepository;
 import com.favo.backend.Domain.product.Product;
+import com.favo.backend.Domain.product.Repository.TagRepository;
+import com.favo.backend.Domain.product.Tag;
 import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
@@ -23,7 +25,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,7 @@ public class PersonalizedChatService {
     private static final int MAX_FOLLOWS = 15;
     private static final int MAX_RECENT_REVIEWS = 8;
     private static final int MAX_HISTORY_MESSAGES = 40;
+    private static final int MAX_CATEGORY_CATALOG_CHARS = 4500;
 
     private final UserService userService;
     private final ProductInteractionRepository productInteractionRepository;
@@ -41,6 +47,7 @@ public class PersonalizedChatService {
     private final AiChatMessageRepository aiChatMessageRepository;
     private final OpenAIChatService openAIChatService;
     private final ChatProductFeedService chatProductFeedService;
+    private final TagRepository tagRepository;
 
     private static final String CAROUSEL_SYSTEM_HINT =
             "\n\nA product carousel with real items from our database will appear below your message in the app. "
@@ -96,6 +103,9 @@ public class PersonalizedChatService {
 
     private String buildPersonalizationBlock(SystemUser user) {
         StringBuilder sb = new StringBuilder();
+
+        sb.append(buildFavoCategoryCatalogForPrompt());
+        sb.append("\n");
 
         sb.append("Account: username=").append(nullToEmpty(user.getUserName()))
                 .append(", display name=").append(trimName(user.getName(), user.getSurname()))
@@ -170,6 +180,59 @@ public class PersonalizedChatService {
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Aktif tag ağacı — alt kategoriler (Smartphones, Smartwatches vb.) modele açıkça verilir;
+     * aksi halde model uydurarak "kategori yok" diyebiliyordu.
+     */
+    private String buildFavoCategoryCatalogForPrompt() {
+        List<Tag> all = tagRepository.findAllActiveWithParentOrderByCategoryPath();
+        Map<Long, List<Tag>> byParentId = new HashMap<>();
+        List<Tag> roots = new ArrayList<>();
+        for (Tag t : all) {
+            if (t.getParent() == null) {
+                roots.add(t);
+            } else {
+                byParentId.computeIfAbsent(t.getParent().getId(), k -> new ArrayList<>()).add(t);
+            }
+        }
+        for (List<Tag> kids : byParentId.values()) {
+            kids.sort(Comparator.comparing(Tag::getName, String.CASE_INSENSITIVE_ORDER));
+        }
+        roots.sort(Comparator.comparing(Tag::getName, String.CASE_INSENSITIVE_ORDER));
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Favo category tree (database; includes all subcategories). ")
+                .append("In the app: Search → top-level name → then subcategories listed under each. ")
+                .append("Do not say a category or subcategory is missing if it appears below. ")
+                .append("Chat product cards are real DB matches.\n");
+
+        for (Tag root : roots) {
+            sb.append("- ").append(root.getName()).append(": ");
+            List<String> under = new ArrayList<>();
+            collectDescendantTagNames(root.getId(), byParentId, under);
+            under.sort(String.CASE_INSENSITIVE_ORDER);
+            sb.append(under.isEmpty() ? "(no sub-tags)" : String.join(", ", under));
+            sb.append("\n");
+        }
+
+        String out = sb.toString();
+        if (out.length() > MAX_CATEGORY_CATALOG_CHARS) {
+            return out.substring(0, MAX_CATEGORY_CATALOG_CHARS - 3) + "...\n";
+        }
+        return out;
+    }
+
+    private static void collectDescendantTagNames(Long parentId, Map<Long, List<Tag>> byParentId, List<String> out) {
+        List<Tag> children = byParentId.get(parentId);
+        if (children == null) {
+            return;
+        }
+        for (Tag c : children) {
+            out.add(c.getName());
+            collectDescendantTagNames(c.getId(), byParentId, out);
+        }
     }
 
     private static String trimName(String name, String surname) {
