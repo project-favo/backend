@@ -9,6 +9,7 @@ public class UserSummaryDto {
 
     private Long id;
     private String username;
-    private String profilePhotoUrl;
+    /** Konuşma listesi avatarı; tam veya göreli URL */
+    private String profileImageUrl;
 }
 

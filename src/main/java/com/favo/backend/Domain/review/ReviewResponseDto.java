@@ -19,6 +19,8 @@ public class ReviewResponseDto {
     private String productName;
     private Long ownerId;
     private String ownerUserName;
+    /** Review sahibinin profil fotoğrafı; tam veya göreli URL */
+    private String ownerProfilePhotoUrl;
     private List<MediaResponseDto> mediaList;
     private Long likeCount; // Review'a yapılan like sayısı
     private Boolean isLikedByCurrentUser; // Mevcut kullanıcı bu review'ı beğenmiş mi?

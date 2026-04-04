@@ -140,31 +140,30 @@ public class ProductService {
     }
 
     /**
-     * Product güncelle
-     * 
-     * ⚠️ ŞU AN PASİF: Admin paneli aktifleştirildiğinde kullanılacak
+     * Product güncelle (admin). Aktif veya pasif ürün düzenlenebilir.
      */
-    /*
     public ProductResponseDto updateProduct(Long id, ProductRequestDto request) {
-        Product product = productRepository.findByIdAndIsActiveTrue(id)
+        Product product = productRepository.findByIdWithTagForAdmin(id)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
 
-        // Tag kontrolü
         if (request.getTagId() != null) {
             Tag tag = tagRepository.findById(request.getTagId())
                     .orElseThrow(() -> new RuntimeException("Tag not found with id: " + request.getTagId()));
-            
-            // Leaf tag kontrolü: Tag'in child'ı olmamalı
+
+            if (!Boolean.TRUE.equals(tag.getIsActive())) {
+                throw new RuntimeException("Cannot assign product to inactive tag. Tag id: " + request.getTagId());
+            }
+
             if (!tag.getChildren().isEmpty()) {
                 boolean hasActiveChildren = tag.getChildren().stream()
                         .anyMatch(child -> Boolean.TRUE.equals(child.getIsActive()));
-                
+
                 if (hasActiveChildren) {
                     throw new RuntimeException("Product can only be assigned to leaf tags (tags without children). " +
                             "Tag '" + tag.getCategoryPath() + "' has child tags.");
                 }
             }
-            
+
             product.setTag(tag);
         }
 
@@ -181,7 +180,6 @@ public class ProductService {
         Product updated = productRepository.save(product);
         return ProductMapper.toDto(updated);
     }
-    */
 
     /**
      * Product'ı pasif yap (soft delete)

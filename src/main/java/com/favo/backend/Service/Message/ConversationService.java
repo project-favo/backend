@@ -6,6 +6,7 @@ import com.favo.backend.Domain.message.Repository.MessageRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
+import com.favo.backend.Service.User.ProfileImageUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final SystemUserRepository systemUserRepository;
+    private final ProfileImageUrlService profileImageUrlService;
     private final SimpMessagingTemplate messagingTemplate;
 
     public Conversation getOrCreateConversation(Long currentUserId, Long recipientId) {
@@ -165,11 +167,14 @@ public class ConversationService {
     }
 
     private MessageDto toMessageDto(Message message) {
+        Long sid = message.getSender().getId();
+        String senderPhotoUrl = profileImageUrlService.buildProfileImageUrl(sid);
         return new MessageDto(
                 message.getId(),
                 message.getConversation().getId(),
-                message.getSender().getId(),
+                sid,
                 message.getSender().getUserName(),
+                senderPhotoUrl,
                 message.getContent(),
                 message.getCreatedAt(),
                 message.isRead()
@@ -185,7 +190,7 @@ public class ConversationService {
         UserSummaryDto otherSummary = new UserSummaryDto(
                 other.getId(),
                 other.getUserName(),
-                null
+                profileImageUrlService.buildProfileImageUrl(other.getId())
         );
 
         String lastMessage = messageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversation.getId())

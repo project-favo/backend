@@ -54,6 +54,10 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        boolean isProfileImageGet = "GET".equalsIgnoreCase(request.getMethod())
+                && path.contains("/api/users/")
+                && path.endsWith("/profile-image");
+
         boolean isPublicEndpoint = path.equals("/api/health") || path.contains("/api/health")
                 || path.contains("/api/tags/search")
                 || path.contains("/api/tags/path")
@@ -62,7 +66,8 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
                 || path.matches(".*/api/tags/\\d+/children")
                 || path.contains("/api/products")
                 || (path.contains("/api/reviews") && "GET".equalsIgnoreCase(request.getMethod()))
-                || (path.contains("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()));
+                || (path.contains("/api/interactions") && "GET".equalsIgnoreCase(request.getMethod()))
+                || isProfileImageGet;
 
         if (isPublicEndpoint) {
             if (!hasToken) {
