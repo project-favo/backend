@@ -125,6 +125,7 @@ public class AuthService {
         user.setBirthdate(birthdate);
         user.setUserType(userType);
         user.setEmailVerified(false);
+        user.setProfileAnonymous(false);
 
         return systemUserRepository.save(user);
     }

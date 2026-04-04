@@ -184,12 +184,14 @@ public class AuthController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String surname,
             @RequestParam(required = false) String birthdate,
+            @RequestParam(required = false) Boolean profileAnonymous,
             @RequestParam(required = false) MultipartFile profilePhoto
     ) {
         UserUpdateRequestDto request = new UserUpdateRequestDto();
         request.setUserName(userName);
         request.setName(name);
         request.setSurname(surname);
+        request.setProfileAnonymous(profileAnonymous);
 
         if (birthdate != null && !birthdate.isEmpty()) {
             request.setBirthdate(java.time.LocalDate.parse(birthdate));
