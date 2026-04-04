@@ -4,6 +4,7 @@ import com.favo.backend.Domain.review.ToxicityResultDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -17,15 +18,18 @@ import java.util.Map;
 public class HuggingFaceService {
 
     private final RestTemplate restTemplate;
+    private final Environment environment;
 
     @Value("${huggingface.api.url}")
     private String apiUrl;
 
-    @Value("${huggingface.api.token}")
-    private String apiToken;
-
     public ToxicityResultDto analyze(String text) {
         if (text == null || text.isBlank()) {
+            return new ToxicityResultDto(null, false);
+        }
+        String apiToken = resolveHuggingFaceToken();
+        if (apiToken.isBlank()) {
+            log.warn("HuggingFace token missing; skipping toxicity call (set HUGGINGFACE_API_TOKEN on Railway or in application-local.properties).");
             return new ToxicityResultDto(null, false);
         }
 
@@ -49,6 +53,25 @@ public class HuggingFaceService {
         }
     }
 
+    private String resolveHuggingFaceToken() {
+        String v = trimToEmpty(environment.getProperty("huggingface.api.token"));
+        if (!v.isEmpty()) {
+            return v;
+        }
+        v = trimToEmpty(environment.getProperty("HUGGINGFACE_API_TOKEN"));
+        if (!v.isEmpty()) {
+            return v;
+        }
+        return trimToEmpty(System.getenv("HUGGINGFACE_API_TOKEN"));
+    }
+
+    private static String trimToEmpty(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.trim();
+    }
+
     @SuppressWarnings("unchecked")
     private Double extractToxicScore(List<?> root) {
         if (root == null || root.isEmpty()) {
@@ -68,4 +91,3 @@ public class HuggingFaceService {
                 .orElse(null);
     }
 }
-

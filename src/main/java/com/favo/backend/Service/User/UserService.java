@@ -67,6 +67,10 @@ public class UserService {
             user.setBirthdate(birthdate);
         }
 
+        if (request.getProfileAnonymous() != null) {
+            user.setProfileAnonymous(request.getProfileAnonymous());
+        }
+
         // Profile photo güncelleme
         if (request.getProfilePhotoData() != null && request.getProfilePhotoData().length > 0) {
             String mimeType = request.getProfilePhotoMimeType();

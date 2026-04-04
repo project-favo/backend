@@ -9,67 +9,71 @@ import com.favo.backend.Domain.user.Repository.UserTypeRepository;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
 import com.favo.backend.Security.SecurityRoles;
+import com.favo.backend.Service.Email.EmailVerificationService;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
-@Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final SystemUserRepository systemUserRepository;
     private final UserTypeRepository userTypeRepository;
     private final FirebaseAuthService firebaseAuthService;
     private final ProfilePhotoRepository profilePhotoRepository;
+    private final EmailVerificationService emailVerificationService;
 
-    /**
-     * 🔓 Login only
-     * - Firebase token'ı verify eder
-     * - DB'de karşılığı olan AKTİF kullanıcıyı döner (UserType ile birlikte)
-     * - Kullanıcı yoksa veya pasifse hata fırlatır
-     * 
-     * @Transactional(readOnly = true) ile session'ı açık tutar ve UserType'ı eager load eder
-     * FirebaseAuthenticationFilter içinde user.getUserType().getName() çağrıldığı için gerekli
-     */
+    public AuthService(
+            SystemUserRepository systemUserRepository,
+            UserTypeRepository userTypeRepository,
+            FirebaseAuthService firebaseAuthService,
+            ProfilePhotoRepository profilePhotoRepository,
+            EmailVerificationService emailVerificationService
+    ) {
+        this.systemUserRepository = systemUserRepository;
+        this.userTypeRepository = userTypeRepository;
+        this.firebaseAuthService = firebaseAuthService;
+        this.profilePhotoRepository = profilePhotoRepository;
+        this.emailVerificationService = emailVerificationService;
+    }
+
     @Transactional(readOnly = true)
     public SystemUser login(@NonNull String firebaseIdToken) {
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
         log.info("Firebase token verified. Looking up user with firebaseUid: {}", info.getUid());
 
-        // UserType fetch join ile yüklenir (SystemUserRepository'de tanımlı)
-        var user = systemUserRepository.findByFirebaseUidAndIsActiveTrue(info.getUid());
-        
-        if (user.isEmpty()) {
-            // Kullanıcı var mı ama pasif mi kontrol et
-            var inactiveUser = systemUserRepository.findByFirebaseUid(info.getUid());
+        Optional<SystemUser> userOpt = systemUserRepository.findByFirebaseUidAndIsActiveTrue(info.getUid());
+
+        if (userOpt.isEmpty()) {
+            Optional<SystemUser> inactiveUser = systemUserRepository.findByFirebaseUid(info.getUid());
             if (inactiveUser.isPresent()) {
-                log.warn("User found but is inactive. firebaseUid: {}, isActive: {}", 
-                    info.getUid(), inactiveUser.get().getIsActive());
+                log.warn("User found but is inactive. firebaseUid: {}, isActive: {}",
+                        info.getUid(), inactiveUser.get().getIsActive());
                 throw new RuntimeException("USER_INACTIVE");
-            } else {
-                log.warn("User not found in database. firebaseUid: {}", info.getUid());
-                throw new RuntimeException("NO_SUCH_ACCOUNT");
             }
+            log.warn("User not found in database. firebaseUid: {}", info.getUid());
+            throw new RuntimeException("NO_SUCH_ACCOUNT");
         }
-        
-        log.info("User found and active. userId: {}, firebaseUid: {}", 
-            user.get().getId(), user.get().getFirebaseUid());
-        return user.get();
+
+        SystemUser user = userOpt.get();
+        if (Boolean.FALSE.equals(user.getEmailVerified())) {
+            throw new RuntimeException("EMAIL_NOT_VERIFIED");
+        }
+
+        log.info("User found and active. userId: {}, firebaseUid: {}",
+                user.getId(), user.getFirebaseUid());
+        return user;
     }
 
-    /**
-     * 🆕 Register
-     * - Firebase token'ı verify eder
-     * - Kullanıcı zaten kayıtlıysa hata fırlatır
-     * - UI'dan gelen username ile yeni user oluşturur
-     * - Profile photo opsiyonel olarak eklenebilir
-     */
     public SystemUser register(@NonNull String firebaseIdToken,
                                @NonNull String userName,
                                @NonNull String name,
@@ -88,28 +92,30 @@ public class AuthService {
             throw new RuntimeException("USERNAME_REQUIRED");
         }
 
-        // Sadece aktif kullanıcılar arasında username kontrolü yap
         if (systemUserRepository.existsByUserNameAndIsActiveTrue(userName)) {
             throw new RuntimeException("USERNAME_ALREADY_TAKEN");
         }
 
         SystemUser user = registerNewUser(info, userName, name, surname, birthdate);
-        
-        // Profile photo varsa ekle
+
         if (profilePhotoData != null && profilePhotoData.length > 0) {
             createProfilePhoto(user, profilePhotoData, profilePhotoMimeType);
         }
-        
+
+        try {
+            emailVerificationService.issueVerificationEmail(user);
+        } catch (Exception e) {
+            log.error("Could not send verification email for user id={}: {}", user.getId(), e.getMessage());
+        }
+
         return user;
     }
 
     private SystemUser registerNewUser(FirebaseUserInfo info, String userName, String name, String surname, LocalDate birthdate) {
-        // 2️⃣ Business role
         UserType userType = userTypeRepository
                 .findByName(SecurityRoles.ROLE_USER)
                 .orElseThrow(() -> new RuntimeException("UserType " + SecurityRoles.ROLE_USER + " not found. Run application once to seed roles."));
 
-        // 3️⃣ Polymorphic creation
         SystemUser user = new GeneralUser();
         user.setFirebaseUid(info.getUid());
         user.setEmail(info.getEmail());
@@ -118,13 +124,20 @@ public class AuthService {
         user.setSurname(surname);
         user.setBirthdate(birthdate);
         user.setUserType(userType);
+        user.setEmailVerified(false);
+        user.setProfileAnonymous(false);
 
         return systemUserRepository.save(user);
     }
 
-    /**
-     * Kullanıcı için profil fotoğrafı oluşturur
-     */
+    // For verify-email / resend: no EMAIL_NOT_VERIFIED check
+    @Transactional(readOnly = true)
+    public SystemUser loadActiveUserByFirebaseToken(@NonNull String firebaseIdToken) {
+        FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
+        return systemUserRepository.findByFirebaseUidAndIsActiveTrue(info.getUid())
+                .orElseThrow(() -> new RuntimeException("NO_SUCH_ACCOUNT"));
+    }
+
     private void createProfilePhoto(SystemUser user, byte[] imageData, String mimeType) {
         ProfilePhoto photo = new ProfilePhoto();
         photo.setUser(user);

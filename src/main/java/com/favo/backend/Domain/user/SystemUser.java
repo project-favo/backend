@@ -40,6 +40,19 @@ public abstract class SystemUser extends BaseEntity {
     @Column(name = "birthdate")
     private LocalDate birthdate;
 
+    /**
+     * null = eski kayıtlar (doğrulanmış sayılır). false = kayıt sonrası kod bekleniyor.
+     */
+    @Column(name = "email_verified")
+    private Boolean emailVerified;
+
+    /**
+     * true = kullanıcı profilini herkese anonim göstermek istiyor (ayarlardan).
+     * null = eski kayıtlar, anonim değil sayılır.
+     */
+    @Column(name = "profile_anonymous")
+    private Boolean profileAnonymous;
+
     // isActive -> BaseEntity'den geliyor
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

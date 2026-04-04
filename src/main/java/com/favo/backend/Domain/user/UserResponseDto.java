@@ -17,7 +17,13 @@ public class UserResponseDto {
     private LocalDate birthdate;
     private String userType;
     private boolean active;
-    
+
+    /** false = kayıt sonrası e-posta doğrulaması bekleniyor; null legacy kullanıcılar doğrulanmış sayılır */
+    private boolean emailVerified;
+
+    /** true = kullanıcı içerikte anonim görünsün; FE isim/avatar maskeleyebilir */
+    private boolean profileAnonymous;
+
     // Profile photo (nullable - eğer profil fotoğrafı yoksa null)
     private byte[] profilePhotoData; // Binary image data
     private String profilePhotoMimeType; // Örn: "image/jpeg", "image/png"

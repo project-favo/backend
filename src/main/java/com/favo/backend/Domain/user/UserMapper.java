@@ -17,6 +17,9 @@ public class UserMapper {
         byte[] photoData = activePhoto != null ? activePhoto.getImageData() : null;
         String photoMimeType = activePhoto != null ? activePhoto.getMimeType() : null;
         
+        boolean emailVerified = !Boolean.FALSE.equals(user.getEmailVerified());
+        boolean profileAnonymous = Boolean.TRUE.equals(user.getProfileAnonymous());
+
         return new UserResponseDto(
                 user.getId(),
                 user.getEmail(),
@@ -26,6 +29,8 @@ public class UserMapper {
                 user.getBirthdate(),
                 user.getUserType().getName(),
                 Boolean.TRUE.equals(user.getIsActive()),
+                emailVerified,
+                profileAnonymous,
                 photoData,
                 photoMimeType
         );

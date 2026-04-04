@@ -22,6 +22,9 @@ public class UserUpdateRequestDto {
     private String profilePhotoBase64; // Base64 encoded image string (Postman için kolay)
     private byte[] profilePhotoData; // Binary image data (alternatif)
     private String profilePhotoMimeType; // Örn: "image/jpeg", "image/png"
+
+    /** null = değiştirme; true/false = anonim profil tercihi */
+    private Boolean profileAnonymous;
 }
 
 
