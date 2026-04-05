@@ -12,6 +12,8 @@ import java.util.Optional;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByProductIdAndIsActiveTrue(Long productId);
+
+    List<Review> findByProduct_IdAndIsActiveTrueOrderByCreatedAtDesc(Long productId, Pageable pageable);
     List<Review> findByOwnerIdAndIsActiveTrue(Long ownerId);
 
     /** Recent reviews by this user (newest first), for personalization context */

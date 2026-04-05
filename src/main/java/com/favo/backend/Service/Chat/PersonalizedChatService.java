@@ -91,7 +91,7 @@ public class PersonalizedChatService {
     }
 
     private List<OpenAiChatTurn> loadPriorTurnsChronological(Long ownerId) {
-        List<AiChatMessage> recentDesc = aiChatMessageRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(
+        List<AiChatMessage> recentDesc = aiChatMessageRepository.findByOwnerIdAndProductIsNullAndIsActiveTrueOrderByCreatedAtDesc(
                 ownerId,
                 PageRequest.of(0, MAX_HISTORY_MESSAGES)
         );

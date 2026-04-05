@@ -1,6 +1,7 @@
 package com.favo.backend.Domain.chat;
 
 import com.favo.backend.Domain.Common.BaseEntity;
+import com.favo.backend.Domain.product.Product;
 import com.favo.backend.Domain.user.SystemUser;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -22,4 +23,9 @@ public class AiChatMessage extends BaseEntity {
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    /** Genel asistan sohbeti: null. Ürün detayından açılan sohbet: ilgili ürün. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", foreignKey = @ForeignKey(name = "fk_ai_chat_message_product"))
+    private Product product;
 }
