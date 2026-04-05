@@ -7,6 +7,7 @@ import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserFollow;
 import com.favo.backend.Domain.user.UserMapper;
 import com.favo.backend.Domain.user.UserResponseDto;
+import com.favo.backend.Service.Notification.AppNotificationService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,7 @@ public class UserFollowService {
     private final UserFollowRepository userFollowRepository;
     private final SystemUserRepository systemUserRepository;
     private final UserMapper userMapper;
+    private final AppNotificationService appNotificationService;
 
     /**
      * Takip et / takipten çık (soft delete). true = şu an takip ediyor.
@@ -40,7 +42,7 @@ public class UserFollowService {
             throw new IllegalArgumentException("Cannot follow yourself");
         }
 
-        return userFollowRepository.findByFollower_IdAndFollowee_Id(follower.getId(), followee.getId())
+        boolean nowFollowing = userFollowRepository.findByFollower_IdAndFollowee_Id(follower.getId(), followee.getId())
                 .map(existing -> {
                     if (Boolean.TRUE.equals(existing.getIsActive())) {
                         existing.setIsActive(false);
@@ -60,6 +62,14 @@ public class UserFollowService {
                     userFollowRepository.save(row);
                     return true;
                 });
+        if (nowFollowing) {
+            try {
+                appNotificationService.onNewFollow(follower, followee);
+            } catch (Exception e) {
+                // Bildirim hatası takip işlemini bozmasın
+            }
+        }
+        return nowFollowing;
     }
 
     public long getFollowerCount(Long userId) {

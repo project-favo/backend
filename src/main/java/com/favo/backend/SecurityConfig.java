@@ -90,6 +90,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/interactions/**").authenticated()
                         // Messaging endpoint'leri: tümü authenticated kullanıcılar için
                         .requestMatchers("/api/messages/**").authenticated()
+                        // Uygulama içi bildirimler
+                        .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/ws-native/**").permitAll()
 
                         // Diğer her şey token ister (Trendyol import endpoint'i de authenticated kullanıcılar için)

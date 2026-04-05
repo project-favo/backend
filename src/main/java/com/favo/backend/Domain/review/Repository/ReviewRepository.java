@@ -80,5 +80,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     /** Admin: ID ile review getirir (aktif/pasif fark etmez), product ve owner ile (media lazy) */
     @Query("SELECT DISTINCT r FROM Review r LEFT JOIN FETCH r.product p LEFT JOIN FETCH r.owner o WHERE r.id = :id")
     Optional<Review> findByIdWithRelationsForAdmin(@Param("id") Long id);
+
+    /** Aynı üründe yorumu olan diğer kullanıcıların id'leri (yeni yorum yazanı hariç). */
+    @Query("SELECT DISTINCT r.owner.id FROM Review r WHERE r.product.id = :productId AND r.isActive = true AND r.owner.id <> :excludeOwnerId")
+    List<Long> findDistinctOwnerIdsByProductIdExcludingOwner(
+            @Param("productId") Long productId,
+            @Param("excludeOwnerId") Long excludeOwnerId
+    );
 }
 
