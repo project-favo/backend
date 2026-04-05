@@ -4,6 +4,7 @@ import com.favo.backend.Domain.user.SystemUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +14,13 @@ public interface SystemUserRepository
         extends JpaRepository<SystemUser, Long> {
 
     Optional<SystemUser> findByFirebaseUid(String firebaseUid);
+
+    /**
+     * E-posta doğrulandığında kalıcı güncelleme (entity merge yerine doğrudan UPDATE; flush/clear ile tutarlı okuma).
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE SystemUser u SET u.emailVerified = true WHERE u.id = :userId")
+    int markEmailVerifiedTrue(@Param("userId") Long userId);
 
     /**
      * Firebase UID'ye göre aktif kullanıcıyı UserType ile birlikte getirir (N+1 query problemini önlemek için)

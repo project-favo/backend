@@ -4,8 +4,8 @@ import com.favo.backend.Domain.user.EmailVerificationCode;
 import com.favo.backend.Domain.user.Repository.EmailVerificationCodeRepository;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.SystemUser;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -79,12 +79,16 @@ public class EmailVerificationService {
         return sendOrLog(u.getEmail(), plainCode);
     }
 
+    /**
+     * Kod doğrulanır, email_verified DB'ye yazılır ve UserType ile birlikte yeniden yüklenmiş kullanıcı döner.
+     * (OSIV / önbellekte eski entity kalmaması için flush + fetch join ile tekrar okuma.)
+     */
     @Transactional
-    public void verifyCode(SystemUser user, String rawCode) {
+    public SystemUser verifyCode(SystemUser user, String rawCode) {
         SystemUser u = systemUserRepository.findById(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
         if (Boolean.TRUE.equals(u.getEmailVerified())) {
-            return;
+            return systemUserRepository.findByIdWithUserType(u.getId()).orElse(u);
         }
         if (!StringUtils.hasText(rawCode) || !rawCode.trim().matches("\\d{5}")) {
             throw new IllegalArgumentException("INVALID_CODE_FORMAT");
@@ -103,8 +107,14 @@ public class EmailVerificationService {
         pending.setConsumedAt(now);
         codeRepository.save(pending);
 
-        u.setEmailVerified(true);
-        systemUserRepository.save(u);
+        int updated = systemUserRepository.markEmailVerifiedTrue(u.getId());
+        if (updated != 1) {
+            log.error("email_verified güncellenemedi: userId={} etkilenenSatir={}", u.getId(), updated);
+            throw new IllegalStateException("EMAIL_VERIFY_PERSIST_FAILED");
+        }
+
+        return systemUserRepository.findByIdWithUserType(u.getId())
+                .orElseThrow(() -> new IllegalStateException("USER_NOT_FOUND_AFTER_VERIFY"));
     }
 
     @Transactional
