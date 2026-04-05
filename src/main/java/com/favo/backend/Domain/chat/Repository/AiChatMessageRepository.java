@@ -8,5 +8,9 @@ import java.util.List;
 
 public interface AiChatMessageRepository extends JpaRepository<AiChatMessage, Long> {
 
-    List<AiChatMessage> findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(Long ownerId, Pageable pageable);
+    /** Genel Favo asistanı (ürün bağlamı olmayan mesajlar). */
+    List<AiChatMessage> findByOwnerIdAndProductIsNullAndIsActiveTrueOrderByCreatedAtDesc(Long ownerId, Pageable pageable);
+
+    /** Belirli bir ürün için kullanıcıya özel sohbet geçmişi. */
+    List<AiChatMessage> findByOwnerIdAndProduct_IdAndIsActiveTrueOrderByCreatedAtDesc(Long ownerId, Long productId, Pageable pageable);
 }
