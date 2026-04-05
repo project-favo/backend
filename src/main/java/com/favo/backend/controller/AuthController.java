@@ -113,7 +113,12 @@ public class AuthController {
         try {
             String token = BearerTokenParser.extractToken(authorization);
             SystemUser user = authService.loadActiveUserByFirebaseToken(token);
-            emailVerificationService.resendVerificationEmail(user);
+            boolean sent = emailVerificationService.resendVerificationEmail(user);
+            if (!sent) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                        "error", "VERIFICATION_EMAIL_NOT_SENT",
+                        "message", "E-posta gönderilemedi. Railway: MAIL_USERNAME, MAIL_PASSWORD (Gmail uygulama şifresi), MAIL_FROM; Deploy Logs’ta SMTP / 'E-posta (doğrulama)' satırlarına bakın."));
+            }
             return ResponseEntity.accepted().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
