@@ -9,9 +9,9 @@ import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.product.Repository.TagRepository;
 import com.favo.backend.Domain.product.Tag;
 import com.favo.backend.Domain.review.Review;
-import com.favo.backend.Domain.review.ReviewMapper;
 import com.favo.backend.Domain.review.ReviewResponseDto;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
+import com.favo.backend.Service.Review.ReviewService;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserResponseDto;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
@@ -38,6 +38,7 @@ public class AdminService {
     private final ProductRepository productRepository;
     private final TagRepository tagRepository;
     private final ReviewRepository reviewRepository;
+    private final ReviewService reviewService;
     private final UserService userService;
     private final com.favo.backend.Domain.user.UserMapper userMapper;
 
@@ -48,7 +49,7 @@ public class AdminService {
                 ? systemUserRepository.findActiveWithUserType(pageable)
                 : systemUserRepository.findAllWithUserType(pageable);
         List<UserResponseDto> content = page.getContent().stream()
-                .map(userMapper::toDto)
+                .map(userMapper::toDtoForList)
                 .collect(Collectors.toList());
         return new AdminPageDto<>(content, page.getTotalElements(), page.getTotalPages(), page.getSize(), page.getNumber());
     }
@@ -138,9 +139,7 @@ public class AdminService {
         Page<Review> page = activeOnly
                 ? reviewRepository.findActiveWithRelations(pageable)
                 : reviewRepository.findAllWithRelations(pageable);
-        List<ReviewResponseDto> content = page.getContent().stream()
-                .map(r -> ReviewMapper.toDto(r, null))
-                .collect(Collectors.toList());
+        List<ReviewResponseDto> content = reviewService.toResponseDtos(page.getContent(), null);
         return new AdminPageDto<>(content, page.getTotalElements(), page.getTotalPages(), page.getSize(), page.getNumber());
     }
 
@@ -148,7 +147,7 @@ public class AdminService {
     public ReviewResponseDto getReview(Long id) {
         Review review = reviewRepository.findByIdWithRelationsForAdmin(id)
                 .orElseThrow(() -> new RuntimeException("Review not found with id: " + id));
-        return ReviewMapper.toDto(review, null);
+        return reviewService.toResponseDto(review, null);
     }
 
     public void deactivateReview(Long reviewId) {

@@ -289,6 +289,7 @@ public class InteractionController {
     /**
      * Kullanıcı takip / takipten çık (user_follow tablosu — product/review interaction'dan ayrı).
      * POST /api/interactions/user/{userId}/follow
+     * <p>Geçerli Firebase Bearer token zorunludur; yoksa veya token geçersizse 401.</p>
      */
     @PostMapping("/user/{userId}/follow")
     public ResponseEntity<Map<String, Object>> toggleUserFollow(
@@ -328,6 +329,9 @@ public class InteractionController {
         }
     }
 
+    /**
+     * GET — kimlik doğrulama gerekmez; isteğe bağlı Bearer ile giriş yapmış kullanıcı bağlamı set edilebilir.
+     */
     @GetMapping("/user/{userId}/followers")
     public ResponseEntity<?> getFollowers(
             @PathVariable Long userId,
@@ -340,6 +344,7 @@ public class InteractionController {
         }
     }
 
+    /** GET — kimlik doğrulama gerekmez. */
     @GetMapping("/user/{userId}/following")
     public ResponseEntity<?> getFollowing(
             @PathVariable Long userId,

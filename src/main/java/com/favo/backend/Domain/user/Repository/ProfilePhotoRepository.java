@@ -25,12 +25,5 @@ public interface ProfilePhotoRepository extends JpaRepository<ProfilePhoto, Long
            "ORDER BY pp.uploadDate DESC")
     java.util.List<ProfilePhoto> findAllByUserId(@Param("userId") Long userId);
 
-    /**
-     * Kullanıcının aktif profil fotoğrafı var mı kontrol eder
-     */
-    @Query("SELECT COUNT(pp) > 0 FROM ProfilePhoto pp " +
-           "WHERE pp.user.id = :userId " +
-           "AND pp.isActive = true")
-    boolean existsActiveByUserId(@Param("userId") Long userId);
 }
 

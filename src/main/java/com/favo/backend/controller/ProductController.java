@@ -136,24 +136,21 @@ public class ProductController {
     /**
      * ✏️ Product güncelle
      * PUT /api/products/{id}
-     * 
-     * ⚠️ ŞU AN PASİF: Admin paneli aktifleştirildiğinde kullanılacak
-     * 
+     *
      * Partial update: Sadece gönderilen field'lar güncellenir
-     * 
+     *
      * Body: {
      *   "name": "Updated Name",  // Opsiyonel
      *   "description": "...",     // Opsiyonel
      *   "imageURL": "...",        // Opsiyonel
      *   "tagId": 456              // Opsiyonel (leaf tag olmalı)
      * }
-     * 
+     *
      * Response: 200 OK + ProductResponseDto
      * Error: 404 Not Found - Product bulunamazsa
      * Error: 400 Bad Request - Tag leaf tag değilse
-     * RBAC: Sadece ADMIN.
+     * RBAC: Sadece ADMIN (Bearer + ROLE_ADMIN).
      */
-    /*
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponseDto> updateProduct(
@@ -163,7 +160,6 @@ public class ProductController {
         ProductResponseDto updated = productService.updateProduct(id, request);
         return ResponseEntity.ok(updated);
     }
-    */
 
     /**
      * 🗑️ Product'ı sil (soft delete - isActive = false)

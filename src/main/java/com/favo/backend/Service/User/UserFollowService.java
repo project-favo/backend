@@ -94,7 +94,7 @@ public class UserFollowService {
     private Page<UserResponseDto> mapFollowersPage(Page<UserFollow> page) {
         List<UserResponseDto> content = page.getContent().stream()
                 .map(UserFollow::getFollower)
-                .map(userMapper::toDto)
+                .map(userMapper::toDtoForList)
                 .collect(Collectors.toList());
         return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
@@ -102,7 +102,7 @@ public class UserFollowService {
     private Page<UserResponseDto> mapFollowingPage(Page<UserFollow> page) {
         List<UserResponseDto> content = page.getContent().stream()
                 .map(UserFollow::getFollowee)
-                .map(userMapper::toDto)
+                .map(userMapper::toDtoForList)
                 .collect(Collectors.toList());
         return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }

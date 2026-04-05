@@ -1,5 +1,11 @@
-# Copy this file to application-local.properties and paste your OpenAI key.
-# application-local.properties is in .gitignore - do not commit it.
-# Run with: mvn spring-boot:run -Dspring.profiles.active=local
-
-openai.api.key=sk-proj-BURAYA_KEY_YAPIŞTIR
+# Kopyala -> application-local.properties (gitignore, commit etme)
+#
+# FIREBASE_SERVICE_ACCOUNT_BASE64: JSON dosyasinin TEK SATIR Base64'u (satir kirilmasi olmasin).
+# firebase.service-account.base64=  (aynı değer, alternatif anahtar)
+#
+# HUGGINGFACE_API_TOKEN veya huggingface.api.token=
+#
+# E-posta dogrulama (Gmail App Password): MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM (genelde gonderen = username)
+# Localde mail yok: APP_EMAIL_LOG_CODE_IF_MAIL_DISABLED=true ile kod logda (sadece dev)
+#
+# Dosya konumu: src/main/resources/application-local.properties

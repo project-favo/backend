@@ -8,6 +8,7 @@ import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Moderation.ToxicityService;
+import com.favo.backend.Service.User.ProfileImageUrlService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final ToxicityService toxicityService;
     private final ReviewFlagRepository reviewFlagRepository;
+    private final ProfileImageUrlService profileImageUrlService;
 
     /**
      * Yeni review oluştur
@@ -76,7 +78,7 @@ public class ReviewService {
 
         Review saved = reviewRepository.save(review);
         toxicityService.analyzeAndApplyAsync(saved.getId());
-        return ReviewMapper.toDto(saved, generalUser.getId());
+        return toResponseDto(saved, generalUser.getId());
     }
 
     public FlagResponseDto flagReview(Long reviewId, GeneralUser user, FlagRequestDto request) {
@@ -113,7 +115,28 @@ public class ReviewService {
     public ReviewResponseDto getReviewById(Long id, Long currentUserId) {
         Review review = reviewRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new RuntimeException("Review not found with id: " + id));
-        return ReviewMapper.toDto(review, currentUserId);
+        return toResponseDto(review, currentUserId);
+    }
+
+    /**
+     * Admin veya toplu dönüşüm: review sahibi için {@code ownerProfilePhotoUrl} doldurulur.
+     */
+    public ReviewResponseDto toResponseDto(Review review, Long currentUserId) {
+        return ReviewMapper.toDto(review, currentUserId, ownerProfilePhotoUrl(review));
+    }
+
+    public List<ReviewResponseDto> toResponseDtos(List<Review> reviews, Long currentUserId) {
+        if (reviews == null || reviews.isEmpty()) {
+            return List.of();
+        }
+        return reviews.stream()
+                .map(r -> ReviewMapper.toDto(r, currentUserId, ownerProfilePhotoUrl(r)))
+                .collect(Collectors.toList());
+    }
+
+    private String ownerProfilePhotoUrl(Review review) {
+        Long ownerId = review.getOwner() != null ? review.getOwner().getId() : null;
+        return ownerId != null ? profileImageUrlService.buildProfileImageUrl(ownerId) : null;
     }
 
     /**
@@ -121,9 +144,7 @@ public class ReviewService {
      */
     public List<ReviewResponseDto> getReviewsByProductId(Long productId, Long currentUserId) {
         List<Review> reviews = reviewRepository.findByProductIdWithRelations(productId);
-        return reviews.stream()
-                .map(review -> ReviewMapper.toDto(review, currentUserId))
-                .collect(Collectors.toList());
+        return toResponseDtos(reviews, currentUserId);
     }
 
     /**
@@ -131,9 +152,7 @@ public class ReviewService {
      */
     public List<ReviewResponseDto> getReviewsByUserId(Long userId, Long currentUserId) {
         List<Review> reviews = reviewRepository.findByOwnerIdWithRelations(userId);
-        return reviews.stream()
-                .map(review -> ReviewMapper.toDto(review, currentUserId))
-                .collect(Collectors.toList());
+        return toResponseDtos(reviews, currentUserId);
     }
 
     /**
@@ -200,7 +219,7 @@ public class ReviewService {
         }
 
         Review updated = reviewRepository.save(review);
-        return ReviewMapper.toDto(updated, user.getId());
+        return toResponseDto(updated, user.getId());
     }
 
     /**

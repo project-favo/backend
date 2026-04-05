@@ -13,6 +13,7 @@ public class MessageDto {
     private Long conversationId;
     private Long senderId;
     private String senderUsername;
+    private String senderProfileImageUrl;
     private String content;
     private LocalDateTime createdAt;
     private boolean isRead;

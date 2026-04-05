@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ReviewMapper {
-    public static ReviewResponseDto toDto(Review review, Long currentUserId) {
+    public static ReviewResponseDto toDto(Review review, Long currentUserId, String ownerProfilePhotoUrl) {
         List<MediaResponseDto> mediaList = review.getMediaList() != null
                 ? review.getMediaList().stream()
                     .filter(media -> Boolean.TRUE.equals(media.getIsActive()))
@@ -44,6 +44,7 @@ public class ReviewMapper {
                 review.getProduct() != null ? review.getProduct().getName() : null,
                 review.getOwner() != null ? review.getOwner().getId() : null,
                 review.getOwner() != null ? review.getOwner().getUserName() : null,
+                ownerProfilePhotoUrl,
                 mediaList,
                 likeCount,
                 isLikedByCurrentUser,
@@ -53,7 +54,7 @@ public class ReviewMapper {
     }
 
     public static ReviewResponseDto toDto(Review review) {
-        return toDto(review, null);
+        return toDto(review, null, null);
     }
 }
 

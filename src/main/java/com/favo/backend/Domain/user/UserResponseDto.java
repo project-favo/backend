@@ -27,4 +27,7 @@ public class UserResponseDto {
     // Profile photo (nullable - eğer profil fotoğrafı yoksa null)
     private byte[] profilePhotoData; // Binary image data
     private String profilePhotoMimeType; // Örn: "image/jpeg", "image/png"
+
+    /** Tam veya göreli URL; GET /api/users/{id}/profile-image — listelerde byte yükü olmadan avatar için */
+    private String profileImageUrl;
 }
