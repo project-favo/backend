@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 
 //System_user tablosnun gerekli anotasyonlar ile detaylanmış hali
@@ -52,6 +53,13 @@ public abstract class SystemUser extends BaseEntity {
      */
     @Column(name = "profile_anonymous")
     private Boolean profileAnonymous;
+
+    /**
+     * Son başarılı "kodu yeniden gönder" zamanı. Kayıttaki ilk mail bu alanı doldurmaz;
+     * böylece register sonrası ilk resend 400 RESEND_COOLDOWN vermez.
+     */
+    @Column(name = "verification_email_last_resend_at")
+    private LocalDateTime verificationEmailLastResendAt;
 
     // isActive -> BaseEntity'den geliyor
 
