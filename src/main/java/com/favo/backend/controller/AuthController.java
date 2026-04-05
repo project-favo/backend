@@ -122,7 +122,7 @@ public class AuthController {
                 if (mail.smtpDetail() != null && !mail.smtpDetail().isBlank()) {
                     body.put("smtpDetail", mail.smtpDetail());
                 }
-                body.put("message", "E-posta gönderilemedi. Railway: MAIL_USERNAME, MAIL_PASSWORD (Gmail uygulama şifresi, boşluksuz), MAIL_FROM (= genelde username). Deploy Logs: SMTP / 'E-posta (doğrulama)'.");
+                body.put("message", "E-posta gönderilemedi. Railway Hobby: SMTP egress bloklu olabilir — RESEND_API_KEY + RESEND_FROM (Resend HTTPS) kullanın. SMTP için: MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM. Deploy log: 'E-posta (doğrulama)'.");
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
             }
             return ResponseEntity.accepted().build();

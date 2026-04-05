@@ -32,6 +32,7 @@ public class EmailVerificationService {
     private final EmailVerificationCodeRepository codeRepository;
     private final SystemUserRepository systemUserRepository;
     private final Environment environment;
+    private final ResendEmailClient resendEmailClient;
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
@@ -146,6 +147,17 @@ public class EmailVerificationService {
             log.error("Doğrulama e-postası gönderilemedi: kullanıcı e-postası boş (Firebase token'da email yok olabilir).");
             return MailSendResult.fail("EMPTY_USER_EMAIL");
         }
+
+        if (resendEmailClient.isConfigured()) {
+            String subject = "Favo — e-posta doğrulama kodunuz";
+            String text = "Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.";
+            MailSendResult r = resendEmailClient.sendPlain(toEmail.trim(), subject, text);
+            if (!r.sent()) {
+                maybeLogCode(toEmail, plainCode);
+            }
+            return r;
+        }
+
         syncMailSenderFromEnvironmentIfNeeded();
 
         String user = resolveSmtpUsername();
