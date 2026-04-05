@@ -9,8 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,6 +31,7 @@ public class EmailVerificationService {
 
     private final EmailVerificationCodeRepository codeRepository;
     private final SystemUserRepository systemUserRepository;
+    private final Environment environment;
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
@@ -143,9 +146,10 @@ public class EmailVerificationService {
             log.error("Doğrulama e-postası gönderilemedi: kullanıcı e-postası boş (Firebase token'da email yok olabilir).");
             return MailSendResult.fail("EMPTY_USER_EMAIL");
         }
-        String user = mailUsername != null ? mailUsername.trim() : "";
-        String fromProp = mailFrom != null ? mailFrom.trim() : "";
-        String from = StringUtils.hasText(fromProp) ? fromProp : user;
+        syncMailSenderFromEnvironmentIfNeeded();
+
+        String user = resolveSmtpUsername();
+        String from = resolveFromAddress(user);
         if (mailSender == null) {
             log.warn("Doğrulama e-postası gönderilmedi: JavaMailSender yok. Railway'de MAIL_* ayarlayın.");
             maybeLogCode(toEmail, plainCode);
@@ -186,5 +190,55 @@ public class EmailVerificationService {
         if (logCodeIfMailDisabled) {
             log.warn("DEV: verification code for {} is {}", toEmail, plainCode);
         }
+    }
+
+    /** @Value bazen boş kalır; Railway OS env doğrudan okunur. */
+    private String resolveSmtpUsername() {
+        if (StringUtils.hasText(mailUsername)) {
+            return mailUsername.trim();
+        }
+        String u = environment.getProperty("MAIL_USERNAME");
+        if (!StringUtils.hasText(u)) {
+            u = environment.getProperty("SPRING_MAIL_USERNAME");
+        }
+        return u != null ? u.trim() : "";
+    }
+
+    private String resolveFromAddress(String smtpUsername) {
+        if (StringUtils.hasText(mailFrom)) {
+            return mailFrom.trim();
+        }
+        String f = environment.getProperty("MAIL_FROM");
+        if (!StringUtils.hasText(f)) {
+            f = environment.getProperty("SPRING_MAIL_FROM");
+        }
+        if (StringUtils.hasText(f)) {
+            return f.trim();
+        }
+        return smtpUsername;
+    }
+
+    /** SMTP gönderiminden hemen önce: bean boş kaldıysa OS env ile doldur. */
+    private void syncMailSenderFromEnvironmentIfNeeded() {
+        if (!(mailSender instanceof JavaMailSenderImpl impl)) {
+            return;
+        }
+        String envUser = firstEnv("MAIL_USERNAME", "SPRING_MAIL_USERNAME");
+        String envPass = firstEnv("MAIL_PASSWORD", "SPRING_MAIL_PASSWORD");
+        if (!StringUtils.hasText(impl.getUsername()) && StringUtils.hasText(envUser)) {
+            impl.setUsername(envUser.trim());
+        }
+        if (!StringUtils.hasText(impl.getPassword()) && StringUtils.hasText(envPass)) {
+            impl.setPassword(envPass.replaceAll("\\s+", ""));
+        }
+    }
+
+    private String firstEnv(String a, String b) {
+        String x = environment.getProperty(a);
+        if (StringUtils.hasText(x)) {
+            return x;
+        }
+        x = environment.getProperty(b);
+        return StringUtils.hasText(x) ? x : null;
     }
 }
