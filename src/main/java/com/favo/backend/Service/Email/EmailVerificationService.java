@@ -117,8 +117,11 @@ public class EmailVerificationService {
                 .orElseThrow(() -> new IllegalStateException("USER_NOT_FOUND_AFTER_VERIFY"));
     }
 
+    /**
+     * @return SMTP ile gönderim başarılıysa true (202 için); yapılandırma eksik veya SMTP hatası false (503 için).
+     */
     @Transactional
-    public void resendVerificationEmail(SystemUser user) {
+    public boolean resendVerificationEmail(SystemUser user) {
         SystemUser u = systemUserRepository.findById(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
         if (Boolean.TRUE.equals(u.getEmailVerified())) {
@@ -137,6 +140,7 @@ public class EmailVerificationService {
             fresh.setVerificationEmailLastResendAt(now);
             systemUserRepository.save(fresh);
         }
+        return sent;
     }
 
     private boolean sendOrLog(String toEmail, String plainCode) {
