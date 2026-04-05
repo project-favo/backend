@@ -96,6 +96,8 @@ public class ChatProductFeedService {
     private static final Pattern EN_FIND_SEARCH = Pattern.compile(
             "(?:find|search|browse|list)\\s+(?:for\\s+)?([\\p{L}\\p{N}]{2,})",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /** "facebook" / "notebook" içinde yanlış eşleşmeyi engellemek için */
+    private static final Pattern EN_BOOK_WORD = Pattern.compile("\\bbooks?\\b", Pattern.CASE_INSENSITIVE);
 
     private static final Locale LOCALE_TR = Locale.forLanguageTag("tr");
 
@@ -153,15 +155,29 @@ public class ChatProductFeedService {
      * 2) Açıkça “beğendiğime göre” / “based on my likes” 3) Genel liste (yüksek puan istenmişse sıralama).
      */
     public List<ChatProductCardDto> buildFeed(SystemUser user, String userMessage) {
-        if (!wantsProductFeed(userMessage)) {
+        return buildFeed(user, userMessage, null);
+    }
+
+    /**
+     * @param conversationRetrievalText son turlar + güncel mesaj (ör. "user: …\\nassistant: …\\nuser: evet");
+     *        arama ve telefon/saat/kitap niyeti buradan da çıkarılır; kısa onaylarda konu korunur.
+     */
+    public List<ChatProductCardDto> buildFeed(SystemUser user, String userMessage, String conversationRetrievalText) {
+        String retrieval = (conversationRetrievalText != null && !conversationRetrievalText.isBlank())
+                ? conversationRetrievalText
+                : userMessage;
+
+        boolean showFeed = wantsProductFeed(userMessage)
+                || (isShortContinuation(userMessage) && wantsProductFeed(retrieval));
+        if (!showFeed) {
             return List.of();
         }
 
-        boolean preferHighRated = wantsHighRated(userMessage);
+        boolean preferHighRated = wantsHighRated(userMessage) || wantsHighRated(retrieval);
 
-        List<String> searchQueries = mergeQueriesWithIntent(userMessage);
+        List<String> searchQueries = mergeQueriesWithIntent(retrieval);
         if (!searchQueries.isEmpty()) {
-            List<ChatProductCardDto> fromSearch = buildFromSearchQueries(searchQueries, userMessage, preferHighRated);
+            List<ChatProductCardDto> fromSearch = buildFromSearchQueries(searchQueries, retrieval, preferHighRated);
             if (!fromSearch.isEmpty()) {
                 return fromSearch;
             }
@@ -208,6 +224,10 @@ public class ChatProductFeedService {
         boolean applePhone = phone && (en.contains("apple") || tr.contains("apple"));
         if (applePhone) {
             list.add(0, "iphone");
+        }
+        boolean book = !watch && !phone && (tr.contains("kitap") || EN_BOOK_WORD.matcher(en).find());
+        if (book) {
+            list.add("book");
         }
         return list;
     }
@@ -653,6 +673,29 @@ public class ChatProductFeedService {
                 || e.contains("based on my likes") || e.contains("from my likes")
                 || e.contains("from my favorites") || e.contains("from my favourites")
                 || e.contains("like my favorites") || e.contains("similar to what i liked");
+    }
+
+    private static final Pattern SHORT_CONTINUATION_TR_EN = Pattern.compile(
+            "^(evet|evt|ha|hı|hi|eh|tabii|tabi|tamam|olur|peki|eyv|eyvallah|sağol|sagol|ok|okay|okey|k\\.|k\\b|yep|yup|yeah|yes|sure|please|thanks|thank\\s+you|go\\s+on|go\\s+ahead|continue|more\\s+please|sounds\\s+good|that\\s+works|alright|fine|great|perfect)"
+                    + "(\\s+(please|thanks|olur|tabii|tabi))?$",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    private static final Pattern SHORT_CONTINUATION_PHRASE = Pattern.compile(
+            "^(daha\\s+fazla|devam|aynı|ayni|başka|baska)(\\s+\\p{L}+){0,4}$",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    /**
+     * Kısa onay / devam (“evet”, “yes”, “tamam”); önceki turda ürün niyeti varsa {@link #buildFeed} retrieval ile birleştirir.
+     */
+    static boolean isShortContinuation(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        String m = message.trim().replaceAll("[.!?…]+$", "").trim();
+        if (m.length() > 72) {
+            return false;
+        }
+        return SHORT_CONTINUATION_TR_EN.matcher(m).matches()
+                || SHORT_CONTINUATION_PHRASE.matcher(m).matches();
     }
 
     static boolean wantsProductFeed(String message) {

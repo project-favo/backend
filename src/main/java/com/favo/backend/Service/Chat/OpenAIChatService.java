@@ -36,8 +36,9 @@ public class OpenAIChatService {
                     + "- Search: use the search icon in the bottom bar to search products.\n"
                     + "- Profile: view/edit profile, settings, change password, delete account.\n"
                     + "- Only help with Favo features. Do not suggest other shopping sites or platforms. "
-                    + "Keep answers short and clear. Reply in the same language the user writes in.\n"
-                    + "Use the personalized context below when it helps (preferences, recent activity), but do not reveal private data of other users.";
+                    + "Keep answers short and clear. Reply in the same language as the user's latest substantive message in this thread.\n"
+                    + "Use the personalized context below when it helps (preferences, recent activity), but do not reveal private data of other users. "
+                    + "Prioritize the ongoing conversation topic over wishlist or old likes unless the user explicitly asks for suggestions from their favorites or likes.";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();

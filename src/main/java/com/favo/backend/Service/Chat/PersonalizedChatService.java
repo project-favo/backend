@@ -39,6 +39,9 @@ public class PersonalizedChatService {
     private static final int MAX_RECENT_REVIEWS = 8;
     private static final int MAX_HISTORY_MESSAGES = 40;
     private static final int MAX_CATEGORY_CATALOG_CHARS = 4500;
+    /** Son birkaç tur; ürün carousel arama metni buradan beslenir (kısa “evet” / “yes” sonrası konu sapmasını azaltır). */
+    private static final int MAX_PRIOR_TURNS_FOR_FEED_CONTEXT = 12;
+    private static final int MAX_FEED_RETRIEVAL_CHARS = 4000;
 
     private final UserService userService;
     private final ProductInteractionRepository productInteractionRepository;
@@ -51,8 +54,9 @@ public class PersonalizedChatService {
 
     private static final String CAROUSEL_SYSTEM_HINT =
             "\n\nA product carousel with real items from our database will appear below your message in the app. "
-                    + "Keep the reply short (1–3 sentences). You may reference categories the user likes; "
-                    + "do not invent product names that are not in the context above.";
+                    + "Keep the reply short (1–3 sentences). Align your answer with those cards (same topic/category); "
+                    + "do not describe a different product category than the carousel. "
+                    + "Do not invent product names that are not in the context above.";
 
     @Transactional
     public ChatResponse chat(SystemUser principal, String userMessage) {
@@ -61,10 +65,11 @@ public class PersonalizedChatService {
         List<OpenAiChatTurn> priorTurns = loadPriorTurnsChronological(user.getId());
         String personalizationBlock = buildPersonalizationBlock(user);
 
-        List<ChatProductCardDto> productFeed = chatProductFeedService.buildFeed(user, userMessage);
+        String feedRetrievalText = buildFeedRetrievalContext(priorTurns, userMessage);
+        List<ChatProductCardDto> productFeed = chatProductFeedService.buildFeed(user, userMessage, feedRetrievalText);
 
         String fullSystem = OpenAIChatService.BASE_SYSTEM_PROMPT
-                + "\n\n--- Personalized context (do not quote verbatim; use to tailor help) ---\n"
+                + "\n\n--- Personalized context (background; prioritize this chat thread over unrelated wishlist items) ---\n"
                 + personalizationBlock
                 + (productFeed.isEmpty() ? "" : CAROUSEL_SYSTEM_HINT);
 
@@ -99,6 +104,28 @@ public class PersonalizedChatService {
             turns.add(new OpenAiChatTurn(role, m.getContent()));
         }
         return turns;
+    }
+
+    /**
+     * Carousel araması için son turları + güncel mesajı birleştirir; yalnızca son mesaj “evet” gibi kısa olduğunda
+     * önceki kullanıcı niyeti (kitap, telefon vb.) sorguya yansır.
+     */
+    private static String buildFeedRetrievalContext(List<OpenAiChatTurn> priorTurnsOldestFirst, String userMessage) {
+        if (priorTurnsOldestFirst == null || priorTurnsOldestFirst.isEmpty()) {
+            return userMessage;
+        }
+        StringBuilder sb = new StringBuilder();
+        int start = Math.max(0, priorTurnsOldestFirst.size() - MAX_PRIOR_TURNS_FOR_FEED_CONTEXT);
+        for (int i = start; i < priorTurnsOldestFirst.size(); i++) {
+            OpenAiChatTurn t = priorTurnsOldestFirst.get(i);
+            sb.append(t.role()).append(": ").append(t.content()).append('\n');
+        }
+        sb.append("user: ").append(userMessage == null ? "" : userMessage);
+        String full = sb.toString();
+        if (full.length() <= MAX_FEED_RETRIEVAL_CHARS) {
+            return full;
+        }
+        return full.substring(full.length() - MAX_FEED_RETRIEVAL_CHARS);
     }
 
     private String buildPersonalizationBlock(SystemUser user) {
