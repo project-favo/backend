@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -113,11 +114,16 @@ public class AuthController {
         try {
             String token = BearerTokenParser.extractToken(authorization);
             SystemUser user = authService.loadActiveUserByFirebaseToken(token);
-            boolean sent = emailVerificationService.resendVerificationEmail(user);
-            if (!sent) {
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                        "error", "VERIFICATION_EMAIL_NOT_SENT",
-                        "message", "E-posta gönderilemedi. Railway: MAIL_USERNAME, MAIL_PASSWORD (Gmail uygulama şifresi), MAIL_FROM; Deploy Logs’ta SMTP / 'E-posta (doğrulama)' satırlarına bakın."));
+            var mail = emailVerificationService.resendVerificationEmail(user);
+            if (!mail.sent()) {
+                Map<String, String> body = new LinkedHashMap<>();
+                body.put("error", "VERIFICATION_EMAIL_NOT_SENT");
+                body.put("code", mail.failureCode() != null ? mail.failureCode() : "UNKNOWN");
+                if (mail.smtpDetail() != null && !mail.smtpDetail().isBlank()) {
+                    body.put("smtpDetail", mail.smtpDetail());
+                }
+                body.put("message", "E-posta gönderilemedi. Railway: MAIL_USERNAME, MAIL_PASSWORD (Gmail uygulama şifresi, boşluksuz), MAIL_FROM (= genelde username). Deploy Logs: SMTP / 'E-posta (doğrulama)'.");
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
             }
             return ResponseEntity.accepted().build();
         } catch (IllegalArgumentException e) {

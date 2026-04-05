@@ -50,16 +50,14 @@ public class EmailVerificationService {
 
     /**
      * Kodu DB'ye yazar ve SMTP ile göndermeyi dener.
-     *
-     * @return SMTP ile gönderim başarılıysa true; yapılandırma eksik / gönderim hatası / alıcı e-posta boşsa false.
-     *         Zaten doğrulanmış kullanıcı için işlem yapılmaz ve true döner.
+     * Zaten doğrulanmış kullanıcı için kod üretilmez; {@link MailSendResult#ok()} döner.
      */
     @Transactional
-    public boolean issueVerificationEmail(SystemUser user) {
+    public MailSendResult issueVerificationEmail(SystemUser user) {
         SystemUser u = systemUserRepository.findById(user.getId())
                 .orElseThrow(() -> new IllegalStateException("User not found: " + user.getId()));
         if (Boolean.TRUE.equals(u.getEmailVerified())) {
-            return true;
+            return MailSendResult.ok();
         }
 
         String plainCode = String.format("%05d", RANDOM.nextInt(100_000));
@@ -76,7 +74,7 @@ public class EmailVerificationService {
         row.setIsActive(true);
         codeRepository.save(row);
 
-        return sendOrLog(u.getEmail(), plainCode);
+        return trySendVerificationMail(u.getEmail(), plainCode);
     }
 
     /**
@@ -117,11 +115,8 @@ public class EmailVerificationService {
                 .orElseThrow(() -> new IllegalStateException("USER_NOT_FOUND_AFTER_VERIFY"));
     }
 
-    /**
-     * @return SMTP ile gönderim başarılıysa true (202 için); yapılandırma eksik veya SMTP hatası false (503 için).
-     */
     @Transactional
-    public boolean resendVerificationEmail(SystemUser user) {
+    public MailSendResult resendVerificationEmail(SystemUser user) {
         SystemUser u = systemUserRepository.findById(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
         if (Boolean.TRUE.equals(u.getEmailVerified())) {
@@ -134,43 +129,37 @@ public class EmailVerificationService {
                 throw new IllegalArgumentException("RESEND_COOLDOWN");
             }
         }
-        boolean sent = issueVerificationEmail(u);
-        if (sent) {
+        MailSendResult mail = issueVerificationEmail(u);
+        if (mail.sent()) {
             SystemUser fresh = systemUserRepository.findById(u.getId()).orElseThrow();
             fresh.setVerificationEmailLastResendAt(now);
             systemUserRepository.save(fresh);
         }
-        return sent;
+        return mail;
     }
 
-    private boolean sendOrLog(String toEmail, String plainCode) {
+    private MailSendResult trySendVerificationMail(String toEmail, String plainCode) {
         if (!StringUtils.hasText(toEmail)) {
             log.error("Doğrulama e-postası gönderilemedi: kullanıcı e-postası boş (Firebase token'da email yok olabilir).");
-            return false;
+            return MailSendResult.fail("EMPTY_USER_EMAIL");
         }
         String user = mailUsername != null ? mailUsername.trim() : "";
         String fromProp = mailFrom != null ? mailFrom.trim() : "";
         String from = StringUtils.hasText(fromProp) ? fromProp : user;
         if (mailSender == null) {
-            log.warn(
-                    "Doğrulama e-postası gönderilmedi: JavaMailSender yok (spring-boot-starter-mail classpath'te değil veya mail otoconfig kapalı). "
-                            + "Kod veritabanına yazıldı; Railway'de MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM ayarlayın.");
+            log.warn("Doğrulama e-postası gönderilmedi: JavaMailSender yok. Railway'de MAIL_* ayarlayın.");
             maybeLogCode(toEmail, plainCode);
-            return false;
+            return MailSendResult.fail("NO_MAIL_SENDER_BEAN");
         }
         if (!StringUtils.hasText(user)) {
-            log.warn(
-                    "Doğrulama e-postası gönderilmedi: MAIL_USERNAME / spring.mail.username boş. "
-                            + "SMTP kullanıcı ve şifre (ör. Gmail App Password) ortam değişkenlerinde tanımlı olmalı.");
+            log.warn("Doğrulama e-postası gönderilmedi: MAIL_USERNAME boş.");
             maybeLogCode(toEmail, plainCode);
-            return false;
+            return MailSendResult.fail("MISSING_MAIL_USERNAME");
         }
         if (!StringUtils.hasText(from)) {
-            log.warn(
-                    "Doğrulama e-postası gönderilmedi: MAIL_FROM / app.mail.from boş ve MAIL_USERNAME da boş sayıldı. "
-                            + "Gmail'de MAIL_FROM genelde MAIL_USERNAME ile aynı adrestir.");
+            log.warn("Doğrulama e-postası gönderilmedi: MAIL_FROM / MAIL_USERNAME gönderen için yetersiz.");
             maybeLogCode(toEmail, plainCode);
-            return false;
+            return MailSendResult.fail("MISSING_MAIL_FROM");
         }
         try {
             SimpleMailMessage msg = new SimpleMailMessage();
@@ -180,13 +169,16 @@ public class EmailVerificationService {
             msg.setText("Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.");
             mailSender.send(msg);
             log.info("Verification email sent to {}", toEmail);
-            return true;
+            return MailSendResult.ok();
         } catch (Exception e) {
-            log.error(
-                    "SMTP gönderimi başarısız (to={}). Gmail: Uygulama şifresi, 2FA, MAIL_FROM=MAIL_USERNAME. Tam hata:",
-                    toEmail, e);
+            String hint = e.getClass().getSimpleName() + ": "
+                    + (e.getMessage() != null ? e.getMessage().replaceAll("\\s+", " ").trim() : "");
+            if (hint.length() > 200) {
+                hint = hint.substring(0, 200) + "...";
+            }
+            log.error("SMTP gönderimi başarısız (to={}). {}", toEmail, hint, e);
             maybeLogCode(toEmail, plainCode);
-            return false;
+            return MailSendResult.fail("SMTP_REJECTED", hint);
         }
     }
 
