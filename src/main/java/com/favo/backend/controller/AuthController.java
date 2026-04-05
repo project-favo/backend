@@ -94,11 +94,12 @@ public class AuthController {
         try {
             String token = BearerTokenParser.extractToken(authorization);
             SystemUser user = authService.loadActiveUserByFirebaseToken(token);
-            emailVerificationService.verifyCode(user, body.getCode());
-            SystemUser fresh = userService.getCurrentUserWithRelations(user);
-            return ResponseEntity.ok(userMapper.toDto(fresh));
+            SystemUser verified = emailVerificationService.verifyCode(user, body.getCode());
+            return ResponseEntity.ok(userMapper.toDto(verified));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
