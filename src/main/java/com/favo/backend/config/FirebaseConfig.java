@@ -15,7 +15,9 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Properties;
 
 @Configuration
@@ -88,7 +90,75 @@ public class FirebaseConfig {
             return v;
         }
 
+        v = readFirebaseFromDotEnv();
+        if (v != null) {
+            return v;
+        }
+
         return null;
+    }
+
+    /**
+     * Spring Boot .env yüklemez; proje kökündeki {@code .env} dosyasından okur.
+     * {@code KEY=value}, {@code export KEY=value}, {@code KEY = value} ve tırnaklı değer desteklenir.
+     */
+    private static String readFirebaseFromDotEnv() {
+        String userDir = System.getProperty("user.dir", ".");
+        Path base = Path.of(userDir).normalize();
+        List<Path> candidates = new ArrayList<>();
+        candidates.add(base.resolve(".env"));
+        Path parent = base.getParent();
+        if (parent != null) {
+            candidates.add(parent.resolve(".env"));
+        }
+        candidates.add(base.resolve("favo-backend").resolve(".env"));
+
+        for (Path envFile : candidates) {
+            if (!Files.isRegularFile(envFile)) {
+                continue;
+            }
+            try {
+                List<String> lines = Files.readAllLines(envFile, StandardCharsets.UTF_8);
+                for (int i = 0; i < lines.size(); i++) {
+                    String line = lines.get(i);
+                    if (i == 0) {
+                        line = stripUtf8Bom(line);
+                    }
+                    line = line.trim();
+                    if (line.isEmpty() || line.startsWith("#")) {
+                        continue;
+                    }
+                    if (line.startsWith("export ")) {
+                        line = line.substring(7).trim();
+                    }
+                    int eq = line.indexOf('=');
+                    if (eq <= 0) {
+                        continue;
+                    }
+                    String key = line.substring(0, eq).trim();
+                    String val = line.substring(eq + 1).trim();
+                    if (val.length() >= 2
+                            && ((val.startsWith("\"") && val.endsWith("\""))
+                                    || (val.startsWith("'") && val.endsWith("'")))) {
+                        val = val.substring(1, val.length() - 1);
+                    }
+                    if ("FIREBASE_SERVICE_ACCOUNT_BASE64".equals(key)
+                            || "firebase.service-account.base64".equals(key)) {
+                        return trimToNull(val);
+                    }
+                }
+            } catch (IOException ignored) {
+                // try next path
+            }
+        }
+        return null;
+    }
+
+    private static String stripUtf8Bom(String s) {
+        if (s != null && !s.isEmpty() && s.charAt(0) == '\uFEFF') {
+            return s.substring(1);
+        }
+        return s;
     }
 
     private static InputStream classpathLocalProperties() {

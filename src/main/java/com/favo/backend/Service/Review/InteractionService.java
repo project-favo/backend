@@ -13,6 +13,7 @@ import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
+import com.favo.backend.Service.Notification.AppNotificationService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class InteractionService {
     private final ProductInteractionRepository productInteractionRepository;
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;
+    private final AppNotificationService appNotificationService;
 
     /**
      * Review'a like/unlike yap
@@ -77,6 +79,7 @@ public class InteractionService {
                 like.setIsActive(true);
                 // createdAt'i güncelleme - bu ilk oluşturulma zamanını korur
                 reviewInteractionRepository.save(like);
+                notifyReviewLikedSafe(generalUser, review);
                 return true; // Like yapıldı
             }
         } else {
@@ -89,7 +92,16 @@ public class InteractionService {
             like.setIsActive(true);
             like.recordInteraction();
             reviewInteractionRepository.save(like);
+            notifyReviewLikedSafe(generalUser, review);
             return true; // Like yapıldı
+        }
+    }
+
+    private void notifyReviewLikedSafe(GeneralUser liker, Review review) {
+        try {
+            appNotificationService.onReviewLiked(liker, review);
+        } catch (Exception ignored) {
+            // Bildirim başarısız olsa etkileşim tamam
         }
     }
 

@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -44,10 +45,13 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         ? user.getUserType().getName()
                         : SecurityRoles.ROLE_USER;
 
+                // Principal adı = kullanıcı id (String) — convertAndSendToUser(userId, "/queue/...", ...) ile eşleşir
+                StompPrincipal stompPrincipal = new StompPrincipal(user.getId());
+                List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(roleName));
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        user,
+                        stompPrincipal,
                         null,
-                        List.of(new SimpleGrantedAuthority(roleName))
+                        authorities
                 );
 
                 accessor.setUser(authentication);

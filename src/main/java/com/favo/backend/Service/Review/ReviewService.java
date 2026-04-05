@@ -8,6 +8,7 @@ import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Moderation.ToxicityService;
+import com.favo.backend.Service.Notification.AppNotificationService;
 import com.favo.backend.Service.User.ProfileImageUrlService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class ReviewService {
     private final ToxicityService toxicityService;
     private final ReviewFlagRepository reviewFlagRepository;
     private final ProfileImageUrlService profileImageUrlService;
+    private final AppNotificationService appNotificationService;
 
     /**
      * Yeni review oluştur
@@ -78,6 +80,11 @@ public class ReviewService {
 
         Review saved = reviewRepository.save(review);
         toxicityService.analyzeAndApplyAsync(saved.getId());
+        try {
+            appNotificationService.onNewReviewOnProduct(saved);
+        } catch (Exception ignored) {
+            // Bildirim hatası review oluşturmayı bozmasın
+        }
         return toResponseDto(saved, generalUser.getId());
     }
 
