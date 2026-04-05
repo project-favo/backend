@@ -1,6 +1,7 @@
 package com.favo.backend.controller;
 
 import com.favo.backend.Domain.user.*;
+import com.favo.backend.Security.BearerTokenParser;
 import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Email.EmailVerificationService;
 import com.favo.backend.Service.Firebase.AuthService;
@@ -41,7 +42,7 @@ public class AuthController {
     public ResponseEntity<UserResponseDto> login(
             @RequestHeader("Authorization") String authorization
     ) {
-        String token = authorization.replace("Bearer ", "").trim();
+        String token = BearerTokenParser.extractToken(authorization);
         SystemUser user = authService.login(token);
         return ResponseEntity.ok(userMapper.toDto(user));
     }
@@ -51,7 +52,7 @@ public class AuthController {
     public ResponseEntity<UserResponseDto> adminLogin(
             @RequestHeader("Authorization") String authorization
     ) {
-        String token = authorization.replace("Bearer ", "").trim();
+        String token = BearerTokenParser.extractToken(authorization);
         SystemUser user = authService.login(token);
 
         String roleName = user.getUserType() != null ? user.getUserType().getName() : null;
@@ -68,7 +69,7 @@ public class AuthController {
             @RequestHeader("Authorization") String authorization,
             @RequestBody RegisterRequestDto request
     ) {
-        String token = authorization.replace("Bearer ", "").trim();
+        String token = BearerTokenParser.extractToken(authorization);
 
         byte[] photoData = convertToByteArray(request.getProfilePhotoBase64(), request.getProfilePhotoData());
 
@@ -91,7 +92,7 @@ public class AuthController {
             @Valid @RequestBody VerifyEmailRequestDto body
     ) {
         try {
-            String token = authorization.replace("Bearer ", "").trim();
+            String token = BearerTokenParser.extractToken(authorization);
             SystemUser user = authService.loadActiveUserByFirebaseToken(token);
             emailVerificationService.verifyCode(user, body.getCode());
             SystemUser fresh = userService.getCurrentUserWithRelations(user);
@@ -109,7 +110,7 @@ public class AuthController {
             @RequestHeader("Authorization") String authorization
     ) {
         try {
-            String token = authorization.replace("Bearer ", "").trim();
+            String token = BearerTokenParser.extractToken(authorization);
             SystemUser user = authService.loadActiveUserByFirebaseToken(token);
             emailVerificationService.resendVerificationEmail(user);
             return ResponseEntity.accepted().build();
@@ -129,7 +130,7 @@ public class AuthController {
             @RequestParam String birthdate,
             @RequestParam(required = false) MultipartFile profilePhoto
     ) {
-        String token = authorization.replace("Bearer ", "").trim();
+        String token = BearerTokenParser.extractToken(authorization);
 
         byte[] photoData = null;
         String photoMimeType = null;

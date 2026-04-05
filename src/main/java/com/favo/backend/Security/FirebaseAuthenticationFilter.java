@@ -38,9 +38,9 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String path = request.getRequestURI();
+        String path = normalizedServletPath(request);
         String header = request.getHeader("Authorization");
-        boolean hasToken = header != null && header.startsWith("Bearer ");
+        boolean hasToken = BearerTokenParser.hasBearer(header);
 
         boolean isAuthEndpoint = path.equals("/api/auth/login")
                 || path.equals("/api/auth/login/admin")
@@ -75,7 +75,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String publicPathToken = extractBearerToken(header);
+            String publicPathToken = BearerTokenParser.extractToken(header);
             try {
                 SystemUser user = authService.login(publicPathToken);
                 String roleName = resolveRoleName(user);
@@ -100,7 +100,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String bearerToken = extractBearerToken(header);
+        String bearerToken = BearerTokenParser.extractToken(header);
         log.info("Processing authentication for path: {}", path);
 
         try {
@@ -161,10 +161,31 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         return SecurityRoles.ROLE_USER;
     }
 
-    private static String extractBearerToken(String authorizationHeader) {
-        if (authorizationHeader == null || authorizationHeader.length() <= 7) {
-            return "";
+    /**
+     * Context-path (ör. /backend) veya boşluk sonrası /api/... ile tutarlı eşleşme için.
+     */
+    private static String normalizedServletPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String context = request.getContextPath();
+        if (context != null && !context.isEmpty() && uri != null && uri.startsWith(context)) {
+            uri = uri.substring(context.length());
         }
-        return authorizationHeader.substring(7).trim();
+        if (uri == null || uri.isEmpty()) {
+            return "/";
+        }
+        if (!uri.startsWith("/")) {
+            uri = "/" + uri;
+        }
+        if (uri.length() > 1 && uri.endsWith("/")) {
+            uri = uri.substring(0, uri.length() - 1);
+        }
+        // Reverse proxy / ek path öneki: .../api/auth/... şeklinde /api'den kes
+        if (!uri.startsWith("/api/")) {
+            int authIdx = uri.indexOf("/api/auth/");
+            if (authIdx >= 0) {
+                uri = uri.substring(authIdx);
+            }
+        }
+        return uri;
     }
 }

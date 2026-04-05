@@ -119,22 +119,43 @@ public class EmailVerificationService {
     }
 
     private void sendOrLog(String toEmail, String plainCode) {
+        if (!StringUtils.hasText(toEmail)) {
+            log.error("Doğrulama e-postası gönderilemedi: kullanıcı e-postası boş (Firebase token'da email yok olabilir).");
+            return;
+        }
         String from = StringUtils.hasText(mailFrom) ? mailFrom : mailUsername;
-        if (mailSender != null && StringUtils.hasText(mailUsername) && StringUtils.hasText(from)) {
-            try {
-                SimpleMailMessage msg = new SimpleMailMessage();
-                msg.setFrom(from);
-                msg.setTo(toEmail);
-                msg.setSubject("Favo — e-posta doğrulama kodunuz");
-                msg.setText("Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.");
-                mailSender.send(msg);
-                log.info("Verification email sent to {}", toEmail);
-            } catch (Exception e) {
-                log.error("Failed to send verification email to {}: {}", toEmail, e.getMessage());
-                maybeLogCode(toEmail, plainCode);
-            }
-        } else {
-            log.warn("Mail not configured (MAIL_USERNAME / JavaMailSender). Verification code not emailed.");
+        if (mailSender == null) {
+            log.warn(
+                    "Doğrulama e-postası gönderilmedi: JavaMailSender yok (spring-boot-starter-mail classpath'te değil veya mail otoconfig kapalı). "
+                            + "Kod veritabanına yazıldı; Railway'de MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM ayarlayın.");
+            maybeLogCode(toEmail, plainCode);
+            return;
+        }
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn(
+                    "Doğrulama e-postası gönderilmedi: MAIL_USERNAME / spring.mail.username boş. "
+                            + "SMTP kullanıcı ve şifre (ör. Gmail App Password) ortam değişkenlerinde tanımlı olmalı.");
+            maybeLogCode(toEmail, plainCode);
+            return;
+        }
+        if (!StringUtils.hasText(from)) {
+            log.warn(
+                    "Doğrulama e-postası gönderilmedi: MAIL_FROM / app.mail.from boş. "
+                            + "Gmail'de genelde MAIL_FROM, MAIL_USERNAME ile aynı adrestir.");
+            maybeLogCode(toEmail, plainCode);
+            return;
+        }
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            msg.setFrom(from);
+            msg.setTo(toEmail);
+            msg.setSubject("Favo — e-posta doğrulama kodunuz");
+            msg.setText("Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.");
+            mailSender.send(msg);
+            log.info("Verification email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("SMTP gönderimi başarısız ({}): {} — MAIL_HOST/PORT veya şifre kontrol edin.",
+                    toEmail, e.getMessage());
             maybeLogCode(toEmail, plainCode);
         }
     }
