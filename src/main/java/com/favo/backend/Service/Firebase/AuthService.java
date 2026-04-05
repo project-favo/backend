@@ -103,12 +103,11 @@ public class AuthService {
         }
 
         try {
-            boolean sent = emailVerificationService.issueVerificationEmail(user);
-            if (!sent) {
+            var mail = emailVerificationService.issueVerificationEmail(user);
+            if (!mail.sent()) {
                 log.error(
-                        "Kayıt sonrası doğrulama e-postası gönderilmedi userId={} email={}. "
-                                + "Railway logunda 'E-posta (doğrulama)' ve 'SMTP gönderimi' satırlarına bak; MAIL_* değişkenleri backend servisinde olmalı.",
-                        user.getId(), user.getEmail());
+                        "Kayıt sonrası doğrulama e-postası gönderilmedi userId={} email={} failureCode={} detail={}",
+                        user.getId(), user.getEmail(), mail.failureCode(), mail.smtpDetail());
             }
         } catch (Exception e) {
             log.error("Could not complete verification email flow for user id={}", user.getId(), e);
