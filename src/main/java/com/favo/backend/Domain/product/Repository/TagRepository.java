@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,7 +31,11 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
      */
     @Query("SELECT DISTINCT t FROM Tag t LEFT JOIN FETCH t.children c WHERE t.id = :tagId AND t.isActive = true AND (c.isActive = true OR c IS NULL)")
     Optional<Tag> findByIdWithActiveChildren(@Param("tagId") Long tagId);
-    
+
+    /** Feed kişiselleştirme: leaf tag'lerin parent'ını tek sorguda yükle (N+1 önleme). */
+    @Query("SELECT DISTINCT t FROM Tag t LEFT JOIN FETCH t.parent WHERE t.id IN :ids")
+    List<Tag> fetchTagsWithParentByIds(@Param("ids") Collection<Long> ids);
+
     /**
      * Tag ismine göre arama yapar (case-insensitive, LIKE query)
      * Hem name hem de categoryPath'te arama yapar

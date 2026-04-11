@@ -3,13 +3,16 @@ package com.favo.backend.controller;
 import com.favo.backend.Domain.product.ProductRequestDto;
 import com.favo.backend.Domain.product.ProductResponseDto;
 import com.favo.backend.Domain.product.ProductSearchResultDto;
+import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Product.ProductService;
+import com.favo.backend.Service.Product.feed.ProductFeedService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +31,45 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductFeedService productFeedService;
+
+    /**
+     * 📈 Son 7 takvim günü (Europe/Istanbul) içinde en çok aktif yorum alan ürünler (azalan).
+     * Public. Sayfalama: page, size (varsayılan 20, en fazla 50).
+     */
+    @GetMapping("/feed/trending-reviews")
+    public ResponseEntity<ProductSearchResultDto> feedTrendingReviews(
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return ResponseEntity.ok(productFeedService.trendingByReviewsLast7Days(pageable));
+    }
+
+    /**
+     * ❤️ Bu takvim haftası (Pazartesi 00:00 – sonraki Pazartesi 00:00, Europe/Istanbul) en çok LIKE alan ürünler.
+     * Public. Sayfalama: page, size (varsayılan 20, en fazla 50).
+     */
+    @GetMapping("/feed/trending-likes-week")
+    public ResponseEntity<ProductSearchResultDto> feedTrendingLikesWeek(
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return ResponseEntity.ok(productFeedService.trendingByLikesCurrentWeek(pageable));
+    }
+
+    /**
+     * 🎯 Kişiselleştirilmiş: beğenilen + yorumlanan ürünlerin leaf tag'leri ve bir üst parent tag altındaki ürünler
+     * içinden, yine son 7 İstanbul takvim gününde en çok yorum alanlar. Bearer zorunlu.
+     * Sinyal yoksa veya kişisel sonuç boşsa global {@code /feed/trending-reviews} ile aynı mantık kullanılır.
+     */
+    @GetMapping("/feed/personalized")
+    public ResponseEntity<ProductSearchResultDto> feedPersonalized(
+            @AuthenticationPrincipal SystemUser user,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(productFeedService.personalizedTrendingReviewsLast7Days(user.getId(), pageable));
+    }
 
     /**
      * 🆕 Yeni product oluştur

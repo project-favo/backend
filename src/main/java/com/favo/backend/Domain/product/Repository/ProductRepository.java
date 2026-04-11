@@ -30,7 +30,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     /**
      * Verilen ID listesine göre ürünleri tag + parent ile getir (sıra korunmaz, service'de sıralanır).
      */
-    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id IN :ids")
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id IN :ids AND p.isActive = true")
     List<Product> findByIdInWithTagAndParent(@Param("ids") List<Long> ids);
 
     /**

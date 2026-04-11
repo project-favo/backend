@@ -70,6 +70,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/tags/*/children").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tags/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tags").permitAll()
+                        // Kişisel ürün feed'i — Bearer zorunlu (genel GET /api/products/** kuralından önce)
+                        .requestMatchers(HttpMethod.GET, "/api/products/feed/personalized").authenticated()
                         // Product okuma public (GET)
                         .requestMatchers("/api/products/**").permitAll()
                         // My Reviews: sadece giriş yapmış kullanıcı kendi listesini alır
