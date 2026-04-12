@@ -82,6 +82,16 @@ public class EmailVerificationService {
     }
 
     /**
+     * Doğrulama dışı sistem e-postaları (şifre sıfırlama bağlantısı vb.); başarısızlıkta kod/bağlantı loglanmaz.
+     */
+    public MailSendResult sendSystemPlainEmail(String toEmail, String subject, String textBody) {
+        if (!StringUtils.hasText(toEmail)) {
+            return MailSendResult.fail("EMPTY_USER_EMAIL");
+        }
+        return trySendPlainMail(toEmail.trim(), subject, textBody);
+    }
+
+    /**
      * Kod doğrulanır, email_verified DB'ye yazılır ve UserType ile birlikte yeniden yüklenmiş kullanıcı döner.
      * (OSIV / önbellekte eski entity kalmaması için flush + fetch join ile tekrar okuma.)
      */
@@ -148,14 +158,18 @@ public class EmailVerificationService {
             return MailSendResult.fail("EMPTY_USER_EMAIL");
         }
 
+        String subject = "Favo — e-posta doğrulama kodunuz";
+        String text = "Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.";
+        MailSendResult r = trySendPlainMail(toEmail.trim(), subject, text);
+        if (!r.sent()) {
+            maybeLogCode(toEmail, plainCode);
+        }
+        return r;
+    }
+
+    private MailSendResult trySendPlainMail(String toEmail, String subject, String textBody) {
         if (resendEmailClient.isConfigured()) {
-            String subject = "Favo — e-posta doğrulama kodunuz";
-            String text = "Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.";
-            MailSendResult r = resendEmailClient.sendPlain(toEmail.trim(), subject, text);
-            if (!r.sent()) {
-                maybeLogCode(toEmail, plainCode);
-            }
-            return r;
+            return resendEmailClient.sendPlain(toEmail, subject, textBody);
         }
 
         syncMailSenderFromEnvironmentIfNeeded();
@@ -163,28 +177,25 @@ public class EmailVerificationService {
         String user = resolveSmtpUsername();
         String from = resolveFromAddress(user);
         if (mailSender == null) {
-            log.warn("Doğrulama e-postası gönderilmedi: JavaMailSender yok. Railway'de MAIL_* ayarlayın.");
-            maybeLogCode(toEmail, plainCode);
+            log.warn("E-posta gönderilmedi: JavaMailSender yok. Railway'de MAIL_* veya Resend ayarlayın.");
             return MailSendResult.fail("NO_MAIL_SENDER_BEAN");
         }
         if (!StringUtils.hasText(user)) {
-            log.warn("Doğrulama e-postası gönderilmedi: MAIL_USERNAME boş.");
-            maybeLogCode(toEmail, plainCode);
+            log.warn("E-posta gönderilmedi: MAIL_USERNAME boş.");
             return MailSendResult.fail("MISSING_MAIL_USERNAME");
         }
         if (!StringUtils.hasText(from)) {
-            log.warn("Doğrulama e-postası gönderilmedi: MAIL_FROM / MAIL_USERNAME gönderen için yetersiz.");
-            maybeLogCode(toEmail, plainCode);
+            log.warn("E-posta gönderilmedi: MAIL_FROM / MAIL_USERNAME gönderen için yetersiz.");
             return MailSendResult.fail("MISSING_MAIL_FROM");
         }
         try {
             SimpleMailMessage msg = new SimpleMailMessage();
             msg.setFrom(from);
             msg.setTo(toEmail);
-            msg.setSubject("Favo — e-posta doğrulama kodunuz");
-            msg.setText("Doğrulama kodunuz: " + plainCode + "\n\nBu kod " + codeTtlMinutes + " dakika geçerlidir.");
+            msg.setSubject(subject);
+            msg.setText(textBody);
             mailSender.send(msg);
-            log.info("Verification email sent to {}", toEmail);
+            log.info("Plain email sent to {}", toEmail);
             return MailSendResult.ok();
         } catch (Exception e) {
             String hint = e.getClass().getSimpleName() + ": "
@@ -193,7 +204,6 @@ public class EmailVerificationService {
                 hint = hint.substring(0, 200) + "...";
             }
             log.error("SMTP gönderimi başarısız (to={}). {}", toEmail, hint, e);
-            maybeLogCode(toEmail, plainCode);
             return MailSendResult.fail("SMTP_REJECTED", hint);
         }
     }

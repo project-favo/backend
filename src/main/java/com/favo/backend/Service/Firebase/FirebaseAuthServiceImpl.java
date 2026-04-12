@@ -3,6 +3,7 @@ package com.favo.backend.Service.Firebase;
 
 import com.favo.backend.Domain.user.FirebaseUserInfo;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import org.springframework.stereotype.Service;
 
@@ -39,6 +40,18 @@ public class FirebaseAuthServiceImpl implements FirebaseAuthService {
             );
         } catch (Exception e) {
             throw new RuntimeException("Invalid Firebase token", e);
+        }
+    }
+
+    @Override
+    public String generatePasswordResetLink(String email) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("EMAIL_REQUIRED");
+        }
+        try {
+            return FirebaseAuth.getInstance().generatePasswordResetLink(email.trim());
+        } catch (FirebaseAuthException e) {
+            throw new RuntimeException("FIREBASE_PASSWORD_RESET_LINK_FAILED", e);
         }
     }
 }

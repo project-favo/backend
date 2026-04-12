@@ -38,6 +38,8 @@ public interface SystemUserRepository
 
     Optional<SystemUser> findByEmail(String email);
 
+    Optional<SystemUser> findByEmailIgnoreCase(String email);
+
     boolean existsByUserName(String userName);
 
     /**
