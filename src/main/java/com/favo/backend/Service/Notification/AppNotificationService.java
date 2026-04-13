@@ -62,6 +62,22 @@ public class AppNotificationService {
     }
 
     @Transactional
+    public void deleteNotification(Long notificationId, Long recipientId) {
+        int n = notificationRepository.softDelete(notificationId, recipientId);
+        if (n > 0) {
+            pushToUser(recipientId, new NotificationPushDto(unreadCount(recipientId), null));
+        }
+    }
+
+    @Transactional
+    public void deleteAllNotifications(Long recipientId) {
+        int n = notificationRepository.softDeleteAll(recipientId);
+        if (n > 0) {
+            pushToUser(recipientId, new NotificationPushDto(0, null));
+        }
+    }
+
+    @Transactional
     public void onNewFollow(GeneralUser follower, GeneralUser followee) {
         if (follower.getId().equals(followee.getId())) {
             return;
