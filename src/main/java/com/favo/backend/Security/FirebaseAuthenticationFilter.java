@@ -46,7 +46,8 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
                 || path.equals("/api/auth/login/admin")
                 || path.startsWith("/api/auth/register")
                 || path.equals("/api/auth/verify-email")
-                || path.equals("/api/auth/resend-verification");
+                || path.equals("/api/auth/resend-verification")
+                || path.equals("/api/auth/forgot-password");
 
         if (isAuthEndpoint) {
             log.debug("Auth endpoint, skip filter: {}", path);

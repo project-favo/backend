@@ -4,6 +4,7 @@ import com.favo.backend.Domain.user.*;
 import com.favo.backend.Security.BearerTokenParser;
 import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Email.EmailVerificationService;
+import com.favo.backend.Service.Email.PasswordResetService;
 import com.favo.backend.Service.Firebase.AuthService;
 import com.favo.backend.Service.User.UserService;
 import jakarta.validation.Valid;
@@ -25,17 +26,20 @@ public class AuthController {
     private final UserService userService;
     private final UserMapper userMapper;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(
             AuthService authService,
             UserService userService,
             UserMapper userMapper,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            PasswordResetService passwordResetService
     ) {
         this.authService = authService;
         this.userService = userService;
         this.userMapper = userMapper;
         this.emailVerificationService = emailVerificationService;
+        this.passwordResetService = passwordResetService;
     }
 
     // POST /login — Bearer Firebase token; unverified email -> EMAIL_NOT_VERIFIED
@@ -131,6 +135,19 @@ public class AuthController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * Şifre sıfırlama: Firebase OOB bağlantısı e-posta ile gönderilir. Bearer gerekmez.
+     * Hesap yoksa da aynı 202 (e-posta sızdırmama).
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody PasswordResetRequestDto body) {
+        passwordResetService.requestPasswordReset(body.getEmail());
+        return ResponseEntity.accepted().body(Map.of(
+                "message",
+                "Bu e-posta adresiyle kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderildi."
+        ));
     }
 
     @PostMapping(value = "/register/multipart", consumes = "multipart/form-data")
