@@ -84,5 +84,15 @@ public interface ProductInteractionRepository extends JpaRepository<ProductInter
            countQuery = "SELECT COUNT(pi) FROM ProductInteraction pi " +
            "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true AND pi.targetProduct.isActive = true")
     Page<ProductInteraction> findLikedProductsByPerformerId(@Param("performerId") Long performerId, Pageable pageable);
+
+    /**
+     * Belirli bir product için aktif REPORT etkileşimlerini sayfalı döner.
+     */
+    @Query("SELECT pi FROM ProductInteraction pi " +
+           "WHERE pi.targetProduct.id = :productId " +
+           "AND pi.type = 'REPORT' " +
+           "AND pi.isActive = true " +
+           "ORDER BY pi.createdAt DESC")
+    Page<ProductInteraction> findReportsByProductId(@Param("productId") Long productId, Pageable pageable);
 }
 
