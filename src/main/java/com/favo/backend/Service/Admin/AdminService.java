@@ -2,6 +2,9 @@ package com.favo.backend.Service.Admin;
 
 import com.favo.backend.Domain.admin.AdminPageDto;
 import com.favo.backend.Domain.admin.AdminTagDto;
+import com.favo.backend.Domain.admin.AdminProductReportDto;
+import com.favo.backend.Domain.interaction.ProductInteraction;
+import com.favo.backend.Domain.interaction.Repository.ProductInteractionRepository;
 import com.favo.backend.Domain.product.Product;
 import com.favo.backend.Domain.product.ProductMapper;
 import com.favo.backend.Domain.product.ProductResponseDto;
@@ -41,6 +44,7 @@ public class AdminService {
     private final ReviewService reviewService;
     private final UserService userService;
     private final com.favo.backend.Domain.user.UserMapper userMapper;
+    private final ProductInteractionRepository productInteractionRepository;
 
     // ---- Users ----
     @Transactional(readOnly = true)
@@ -102,6 +106,23 @@ public class AdminService {
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
         product.setIsActive(true);
         productRepository.save(product);
+    }
+
+    /**
+     * Belirli bir product için aktif REPORT etkileşimlerini admin paneli için sayfalı döner.
+     */
+    @Transactional(readOnly = true)
+    public AdminPageDto<AdminProductReportDto> listProductReports(Long productId, Pageable pageable) {
+        Page<ProductInteraction> page = productInteractionRepository.findReportsByProductId(productId, pageable);
+        List<AdminProductReportDto> content = page.getContent().stream()
+                .map(pi -> new AdminProductReportDto(
+                        pi.getId(),
+                        pi.getTargetProduct() != null ? pi.getTargetProduct().getId() : null,
+                        pi.getPerformer() != null ? pi.getPerformer().getId() : null,
+                        pi.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+        return new AdminPageDto<>(content, page.getTotalElements(), page.getTotalPages(), page.getSize(), page.getNumber());
     }
 
     // ---- Tags ----

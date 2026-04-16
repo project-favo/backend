@@ -96,6 +96,20 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * GET /api/admin/products/{id}/reports?page=0&size=20
+     * Belirli bir ürün için aktif REPORT etkileşimlerini listeler.
+     */
+    @GetMapping("/products/{id}/reports")
+    public ResponseEntity<AdminPageDto<com.favo.backend.Domain.admin.AdminProductReportDto>> listProductReports(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        return ResponseEntity.ok(adminService.listProductReports(id, pageable));
+    }
+
     // ---- Tags ----
     /**
      * GET /api/admin/tags?page=0&size=20&activeOnly=false

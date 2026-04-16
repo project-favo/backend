@@ -87,6 +87,37 @@ public class InteractionController {
     }
 
     /**
+     * 🚩 Product'ı raporla
+     * POST /api/interactions/product/{productId}/report
+     *
+     * Aynı kullanıcı aynı ürünü birden fazla kez raporlayamaz (idempotent).
+     *
+     * Response: 200 OK + { "reported": true/false }
+     *  - reported=true   -> yeni rapor oluşturuldu
+     *  - reported=false  -> kullanıcı zaten daha önce raporlamış
+     *
+     * Error: 404 Not Found - Product bulunamazsa
+     * Error: 400 Bad Request - Kendi ürününüzü raporlamaya çalışırsanız
+     */
+    @PostMapping("/product/{productId}/report")
+    public ResponseEntity<Map<String, Object>> reportProduct(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "UNAUTHORIZED", "message", "User not authenticated"));
+            }
+            boolean reported = interactionService.reportProduct(productId, user);
+            return ResponseEntity.ok(Map.of("reported", reported));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(Map.of("error", "BAD_REQUEST", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "INTERNAL_ERROR", "message", e.getMessage()));
+        }
+    }
+
+    /**
      * 📋 Kullanıcının wishlist'i (beğendiği ürünler)
      * GET /api/interactions/me/wishlist
      *
@@ -147,6 +178,18 @@ public class InteractionController {
     @GetMapping("/product/{productId}/like-count")
     public ResponseEntity<Map<String, Long>> getProductLikeCount(@PathVariable Long productId) {
         Long count = interactionService.getProductLikeCount(productId);
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    /**
+     * 📊 Product'ın rapor sayısını getir
+     * GET /api/interactions/product/{productId}/report-count
+     *
+     * Response: 200 OK + { "count": 123 }
+     */
+    @GetMapping("/product/{productId}/report-count")
+    public ResponseEntity<Map<String, Long>> getProductReportCount(@PathVariable Long productId) {
+        Long count = interactionService.getProductInteractionCountByType(productId, "REPORT");
         return ResponseEntity.ok(Map.of("count", count));
     }
 
@@ -284,6 +327,22 @@ public class InteractionController {
         boolean isLiked = interactionService.isProductLikedByUser(productId, userId);
         log.info("isProductLiked result for productId: {}, userId: {}, isLiked: {}", productId, userId, isLiked);
         return ResponseEntity.ok(Map.of("isLiked", isLiked));
+    }
+
+    /**
+     * ✅ Kullanıcının product'ı raporlayıp raporlamadığını kontrol et
+     * GET /api/interactions/product/{productId}/is-reported
+     *
+     * Response: 200 OK + { "isReported": true/false }
+     */
+    @GetMapping("/product/{productId}/is-reported")
+    public ResponseEntity<Map<String, Boolean>> isProductReported(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        Long userId = user != null ? user.getId() : null;
+        boolean isReported = interactionService.isProductReportedByUser(productId, userId);
+        return ResponseEntity.ok(Map.of("isReported", isReported));
     }
 
     /**

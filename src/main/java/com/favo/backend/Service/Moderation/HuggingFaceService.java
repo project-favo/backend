@@ -9,13 +9,33 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class HuggingFaceService {
+
+    /**
+     * unitary/toxic-bert ve benzeri çok başlıklı toxicity modellerinde yaygın etiketler.
+     * Farklı Jigsaw varyantları (toxicity / identity_attack vb.) için ek isimler de dahil.
+     */
+    private static final Set<String> TOXICITY_HEAD_LABELS = new LinkedHashSet<>(List.of(
+            "toxic",
+            "severe_toxic",
+            "obscene",
+            "threat",
+            "insult",
+            "identity_hate",
+            "toxicity",
+            "severe_toxicity",
+            "identity_attack",
+            "sexual_explicit"
+    ));
 
     private final RestTemplate restTemplate;
     private final Environment environment;
@@ -38,13 +58,15 @@ public class HuggingFaceService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(apiToken);
 
-            Map<String, String> body = Map.of("inputs", text);
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
+            Map<String, String> requestBody = Map.of("inputs", text);
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<List> response =
-                    restTemplate.postForEntity(apiUrl, entity, List.class);
-
-            Double toxicScore = extractToxicScore(response.getBody());
+            ResponseEntity<?> response = restTemplate.postForEntity(apiUrl, entity, List.class);
+            Object responseBody = response.getBody();
+            if (!(responseBody instanceof List<?> rootList)) {
+                return new ToxicityResultDto(null, false);
+            }
+            Double toxicScore = extractCombinedToxicityScore(rootList);
             boolean isToxic = toxicScore != null && toxicScore >= 0.80;
             return new ToxicityResultDto(toxicScore, isToxic);
         } catch (Exception ex) {
@@ -72,8 +94,12 @@ public class HuggingFaceService {
         return s.trim();
     }
 
-    @SuppressWarnings("unchecked")
-    private Double extractToxicScore(List<?> root) {
+    /**
+     * HF text-classification cevabı: {@code [[{label, score}, ...]]} biçiminde.
+     * Birleşik skor = bilinen toxicity başlıkları arasındaki maksimum skor;
+     * hiçbiri yoksa (farklı model) tüm etiket skorlarının maksimumu kullanılır.
+     */
+    private Double extractCombinedToxicityScore(List<?> root) {
         if (root == null || root.isEmpty()) {
             return null;
         }
@@ -81,13 +107,31 @@ public class HuggingFaceService {
         if (!(firstList instanceof List<?> inner) || inner.isEmpty()) {
             return null;
         }
-        return inner.stream()
-                .filter(Map.class::isInstance)
-                .map(Map.class::cast)
-                .filter(m -> "toxic".equals(m.get("label")))
-                .map(m -> (Number) m.get("score"))
-                .map(Number::doubleValue)
-                .findFirst()
-                .orElse(null);
+        Map<String, Double> labelToScore = new LinkedHashMap<>();
+        for (Object item : inner) {
+            if (!(item instanceof Map<?, ?> m)) {
+                continue;
+            }
+            Object labelObj = m.get("label");
+            Object scoreObj = m.get("score");
+            if (!(labelObj instanceof String label) || !(scoreObj instanceof Number num)) {
+                continue;
+            }
+            labelToScore.put(label, num.doubleValue());
+        }
+        if (labelToScore.isEmpty()) {
+            return null;
+        }
+        double maxAmongHeads = TOXICITY_HEAD_LABELS.stream()
+                .mapToDouble(l -> labelToScore.getOrDefault(l, Double.NEGATIVE_INFINITY))
+                .max()
+                .orElse(Double.NEGATIVE_INFINITY);
+        if (maxAmongHeads > Double.NEGATIVE_INFINITY) {
+            return maxAmongHeads;
+        }
+        return labelToScore.values().stream()
+                .mapToDouble(Double::doubleValue)
+                .max()
+                .getAsDouble();
     }
 }

@@ -158,6 +158,42 @@ public class InteractionService {
     }
 
     /**
+     * Product'ı raporla.
+     * Aynı kullanıcı aynı ürünü birden fazla kez raporlayamaz (idempotent create).
+     */
+    public boolean reportProduct(Long productId, SystemUser user) {
+        if (!(user instanceof GeneralUser)) {
+            throw new RuntimeException("Only GeneralUser can report products");
+        }
+
+        GeneralUser generalUser = (GeneralUser) user;
+
+        Product product = productRepository.findByIdAndIsActiveTrue(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        var existingReport = productInteractionRepository.findByPerformerIdAndProductIdAndType(
+                generalUser.getId(),
+                productId,
+                "REPORT"
+        );
+
+        if (existingReport.isPresent()) {
+            return false;
+        }
+
+        ProductInteraction report = new ProductInteraction();
+        report.setPerformer(generalUser);
+        report.setTargetProduct(product);
+        report.setType("REPORT");
+        report.setCreatedAt(LocalDateTime.now());
+        report.setIsActive(true);
+        report.recordInteraction();
+        productInteractionRepository.save(report);
+
+        return true;
+    }
+
+    /**
      * Review'ın like sayısını getir
      */
     public Long getReviewLikeCount(Long reviewId) {
@@ -295,6 +331,25 @@ public class InteractionService {
             log.debug("isProductLikedByUser: Found like - isActive: {}", like.get().getIsActive());
         }
         return isLiked;
+    }
+
+    /**
+     * Kullanıcının product'ı raporlayıp raporlamadığını kontrol et.
+     */
+    public boolean isProductReportedByUser(Long productId, Long userId) {
+        if (userId == null) {
+            log.debug("isProductReportedByUser: userId is null for productId: {}", productId);
+            return false;
+        }
+        log.debug("isProductReportedByUser: Checking report for productId: {}, userId: {}", productId, userId);
+        var report = productInteractionRepository.findByPerformerIdAndProductIdAndType(
+                userId,
+                productId,
+                "REPORT"
+        );
+        boolean reported = report.isPresent();
+        log.debug("isProductReportedByUser: productId: {}, userId: {}, reported: {}", productId, userId, reported);
+        return reported;
     }
 
     /**
