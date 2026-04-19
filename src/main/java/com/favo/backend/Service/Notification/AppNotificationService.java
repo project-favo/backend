@@ -9,6 +9,7 @@ import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
+import com.favo.backend.Service.User.ProfileImageUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class AppNotificationService {
     private final InAppNotificationRepository notificationRepository;
     private final SystemUserRepository systemUserRepository;
     private final ReviewRepository reviewRepository;
+    private final ProfileImageUrlService profileImageUrlService;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -192,6 +194,16 @@ public class AppNotificationService {
     }
 
     private InAppNotificationDto toDto(InAppNotification n) {
+        NotificationActorDto actorDto = null;
+        if (n.getActor() != null) {
+            SystemUser a = n.getActor();
+            long aid = a.getId();
+            actorDto = new NotificationActorDto(
+                    aid,
+                    a.getUserName(),
+                    profileImageUrlService.buildProfileImageUrl(aid)
+            );
+        }
         return new InAppNotificationDto(
                 n.getId(),
                 n.getType(),
@@ -200,7 +212,8 @@ public class AppNotificationService {
                 n.getBody(),
                 n.getPayloadJson(),
                 n.getCreatedAt(),
-                n.getReadAt()
+                n.getReadAt(),
+                actorDto
         );
     }
 

@@ -21,4 +21,7 @@ public class InAppNotificationDto {
     private String payloadJson;
     private LocalDateTime createdAt;
     private LocalDateTime readAt;
+
+    /** Bildirimi tetikleyen kullanıcı; actor yoksa null */
+    private NotificationActorDto actor;
 }
