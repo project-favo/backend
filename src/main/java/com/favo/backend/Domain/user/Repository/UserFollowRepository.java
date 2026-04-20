@@ -26,5 +26,8 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
     @Query("SELECT uf FROM UserFollow uf WHERE uf.follower.id = :userId AND uf.isActive = true ORDER BY uf.createdAt DESC")
     Page<UserFollow> findFollowingPage(@Param("userId") Long followerId, Pageable pageable);
 
+    @Query("SELECT uf.followee.id FROM UserFollow uf WHERE uf.follower.id = :followerId AND uf.isActive = true")
+    List<Long> findActiveFolloweeIds(@Param("followerId") Long followerId);
+
     boolean existsByFollower_IdAndFollowee_IdAndIsActiveTrue(Long followerId, Long followeeId);
 }
