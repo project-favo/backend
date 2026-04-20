@@ -1,9 +1,11 @@
 package com.favo.backend.Service.Notification;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.favo.backend.Domain.notification.*;
 import com.favo.backend.Domain.notification.Repository.InAppNotificationRepository;
+import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
@@ -33,6 +35,7 @@ public class AppNotificationService {
 
     private final InAppNotificationRepository notificationRepository;
     private final SystemUserRepository systemUserRepository;
+    private final ProductRepository productRepository;
     private final ReviewRepository reviewRepository;
     private final ProfileImageUrlService profileImageUrlService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -204,6 +207,7 @@ public class AppNotificationService {
                     profileImageUrlService.buildProfileImageUrl(aid)
             );
         }
+        NotificationProductDto productDto = resolveProductDto(n.getPayloadJson());
         return new InAppNotificationDto(
                 n.getId(),
                 n.getType(),
@@ -213,8 +217,42 @@ public class AppNotificationService {
                 n.getPayloadJson(),
                 n.getCreatedAt(),
                 n.getReadAt(),
-                actorDto
+                actorDto,
+                productDto
         );
+    }
+
+    private NotificationProductDto resolveProductDto(String payloadJson) {
+        Long productId = extractProductId(payloadJson);
+        if (productId == null) {
+            return null;
+        }
+        return productRepository.findById(productId)
+                .map(p -> new NotificationProductDto(p.getId(), p.getName(), p.getImageURL()))
+                .orElse(null);
+    }
+
+    private Long extractProductId(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(payloadJson);
+            JsonNode productIdNode = root.get("productId");
+            if (productIdNode == null || productIdNode.isNull()) {
+                return null;
+            }
+            if (productIdNode.canConvertToLong()) {
+                return productIdNode.longValue();
+            }
+            String asText = productIdNode.asText();
+            if (asText == null || asText.isBlank()) {
+                return null;
+            }
+            return Long.parseLong(asText.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public static String displayName(SystemUser u) {
