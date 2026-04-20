@@ -24,4 +24,7 @@ public class InAppNotificationDto {
 
     /** Bildirimi tetikleyen kullanıcı; actor yoksa null */
     private NotificationActorDto actor;
+
+    /** Bildirim bir ürüne bağlıysa ürün özeti; değilse null */
+    private NotificationProductDto product;
 }
