@@ -84,7 +84,7 @@ public class ChatProductFeedService {
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     /** recommend books, suggest me headphones */
     private static final Pattern EN_RECOMMEND_SUGGEST = Pattern.compile(
-            "(?:recommend|suggest)(?:\\s+me|\\s+us)?\\s+([\\p{L}\\p{N}]{2,})",
+            "(?:recommend|suggest)(?:\\s+me|\\s+us)?(?:\\s+(?:a|an|the))?\\s+([\\p{L}\\p{N}]{2,})",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     /** show me laptops, show headphones */
     private static final Pattern EN_SHOW_ME = Pattern.compile(
@@ -168,18 +168,22 @@ public class ChatProductFeedService {
         String retrieval = (conversationRetrievalText != null && !conversationRetrievalText.isBlank())
                 ? conversationRetrievalText
                 : userMessage;
+        boolean shortContinuation = isShortContinuation(userMessage);
 
         boolean showFeed = wantsProductFeed(userMessage)
-                || (isShortContinuation(userMessage) && wantsProductFeed(retrieval));
+                || (shortContinuation && wantsProductFeed(retrieval));
         if (!showFeed) {
             return List.of();
         }
 
         boolean preferHighRated = wantsHighRated(userMessage) || wantsHighRated(retrieval);
 
-        List<String> searchQueries = mergeQueriesWithIntent(retrieval);
+        // Normal sorgularda sadece güncel mesajı kullan; önceki turdaki "iphone" gibi niyetler
+        // yeni isteği (ör. "suggest me a jacket") yanlış yönlendirmesin.
+        String querySource = shortContinuation ? retrieval : userMessage;
+        List<String> searchQueries = mergeQueriesWithIntent(querySource);
         if (!searchQueries.isEmpty()) {
-            List<ChatProductCardDto> fromSearch = buildFromSearchQueries(searchQueries, retrieval, preferHighRated);
+            List<ChatProductCardDto> fromSearch = buildFromSearchQueries(searchQueries, querySource, preferHighRated);
             if (!fromSearch.isEmpty()) {
                 return fromSearch;
             }
