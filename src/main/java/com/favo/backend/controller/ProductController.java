@@ -3,8 +3,10 @@ package com.favo.backend.controller;
 import com.favo.backend.Domain.product.ProductRequestDto;
 import com.favo.backend.Domain.product.ProductResponseDto;
 import com.favo.backend.Domain.product.ProductSearchResultDto;
+import com.favo.backend.Domain.feed.FriendsFeedResultDto;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Product.ProductService;
+import com.favo.backend.Service.Product.feed.FriendsFeedService;
 import com.favo.backend.Service.Product.feed.ProductFeedService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final ProductFeedService productFeedService;
+    private final FriendsFeedService friendsFeedService;
 
     /**
      * 📈 Son 7 takvim günü (Europe/Istanbul) içinde en çok aktif yorum alan ürünler (azalan).
@@ -69,6 +72,21 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         return ResponseEntity.ok(productFeedService.personalizedTrendingReviewsLast7Days(user.getId(), pageable));
+    }
+
+    /**
+     * 👥 Friends feed (MVP): takip edilen kullanıcıların son review ve beğendiği ürün aktiviteleri.
+     * Bearer zorunlu. Pagination: page/size (varsayılan size=20, max=50).
+     */
+    @GetMapping("/feed/friends")
+    public ResponseEntity<FriendsFeedResultDto> friendsFeed(
+            @AuthenticationPrincipal SystemUser user,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(friendsFeedService.getFriendsFeed(user.getId(), pageable));
     }
 
     /**

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface ProductInteractionRepository extends JpaRepository<ProductInteraction, Long> {
     
@@ -84,6 +85,20 @@ public interface ProductInteractionRepository extends JpaRepository<ProductInter
            countQuery = "SELECT COUNT(pi) FROM ProductInteraction pi " +
            "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true AND pi.targetProduct.isActive = true")
     Page<ProductInteraction> findLikedProductsByPerformerId(@Param("performerId") Long performerId, Pageable pageable);
+
+    @Query("SELECT pi FROM ProductInteraction pi " +
+           "LEFT JOIN FETCH pi.targetProduct p " +
+           "LEFT JOIN FETCH pi.performer u " +
+           "WHERE pi.performer.id IN :performerIds AND pi.type = 'LIKE' AND pi.isActive = true AND p.isActive = true " +
+           "ORDER BY pi.createdAt DESC")
+    List<ProductInteraction> findRecentFeedLikesByPerformerIds(
+            @Param("performerIds") List<Long> performerIds,
+            Pageable pageable
+    );
+
+    @Query("SELECT COUNT(pi) FROM ProductInteraction pi " +
+           "WHERE pi.performer.id IN :performerIds AND pi.type = 'LIKE' AND pi.isActive = true AND pi.targetProduct.isActive = true")
+    long countActiveLikesByPerformerIds(@Param("performerIds") List<Long> performerIds);
 
     /**
      * Belirli bir product için aktif REPORT etkileşimlerini sayfalı döner.
