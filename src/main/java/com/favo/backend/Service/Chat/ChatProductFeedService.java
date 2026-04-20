@@ -38,6 +38,8 @@ public class ChatProductFeedService {
     private static final int CANDIDATE_POOL = 40;
     private static final int MAX_LIKES_FOR_TAGS = 25;
     private static final int MAX_TAG_IDS = 50;
+    private static final int MIN_RELEVANCE_FOR_STRICT_INTENT = 35;
+    private static final int MIN_RELEVANCE_FOR_GENERIC_QUERY = 20;
 
     /**
      * Sadece çok kelimeli / karışık ifadeler (tek kelime kategori adları token aramasıyla zaten yakalanır).
@@ -291,12 +293,21 @@ public class ChatProductFeedService {
         List<Product> products = loadProductsPreservingOrder(ids);
         products.sort(Comparator.comparing((Product p) -> relevanceScore(p, q, watchAsk, phoneAsk)).reversed());
 
-        if (watchAsk || phoneAsk) {
-            List<Product> filtered = products.stream()
-                    .filter(p -> relevanceScore(p, q, watchAsk, phoneAsk) > -500)
+        int minRelevance = (watchAsk || phoneAsk)
+                ? MIN_RELEVANCE_FOR_STRICT_INTENT
+                : MIN_RELEVANCE_FOR_GENERIC_QUERY;
+        List<Product> filtered = products.stream()
+                .filter(p -> relevanceScore(p, q, watchAsk, phoneAsk) >= minRelevance)
+                .collect(Collectors.toList());
+        if (!filtered.isEmpty()) {
+            products = filtered;
+        } else {
+            // Sonuç tamamen boşalmasın; yine de tamamen alakasız olanları ele.
+            List<Product> softFiltered = products.stream()
+                    .filter(p -> relevanceScore(p, q, watchAsk, phoneAsk) > 0)
                     .collect(Collectors.toList());
-            if (!filtered.isEmpty()) {
-                products = filtered;
+            if (!softFiltered.isEmpty()) {
+                products = softFiltered;
             }
         }
 
@@ -373,6 +384,9 @@ public class ChatProductFeedService {
                 return -300;
             }
         }
+        if (phoneAsk && looksLikePhoneAccessory(path, tagName, name)) {
+            return -450;
+        }
         if (phoneAsk && (path.contains("headphone") || path.contains("airpod") || path.contains("earbud")
                 || path.contains("beats"))) {
             return -300;
@@ -398,6 +412,26 @@ public class ChatProductFeedService {
             s += 10;
         }
         return s;
+    }
+
+    /**
+     * iPhone/telefon isteğinde "uyumlu aksesuar" ürünlerini (kılıf, şarj vb.) aşağı iter.
+     */
+    private static boolean looksLikePhoneAccessory(String path, String tagName, String name) {
+        String joined = (path + " " + tagName + " " + name).toLowerCase(Locale.ROOT);
+        if (joined.isBlank()) {
+            return false;
+        }
+        String[] accessoryWords = {
+                "accessory", "aksesuar", "case", "cover", "kılıf", "kilif", "charger", "şarj", "sarj",
+                "cable", "kablo", "adapter", "adaptor", "earbud", "airpod", "headphone", "kulaklık", "kulaklik"
+        };
+        for (String w : accessoryWords) {
+            if (joined.contains(w)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Sadece kullanıcı açıkça “beğendiklerime göre” dediyse */
