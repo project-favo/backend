@@ -39,7 +39,18 @@ public class ChatProductFeedService {
     private static final int MAX_LIKES_FOR_TAGS = 25;
     private static final int MAX_TAG_IDS = 50;
     private static final int MIN_RELEVANCE_FOR_STRICT_INTENT = 35;
-    private static final int MIN_RELEVANCE_FOR_GENERIC_QUERY = 20;
+    private static final int MIN_RELEVANCE_FOR_GENERIC_QUERY = 25;
+    /** Q birden çok sözcük olduğunda (ve zorunlu terimler varsa) eşik yükser; çapraz kategori sızmasını azaltır. */
+    private static final int MIN_RELEVANCE_FOR_MULTIWORD = 32;
+
+    /**
+     * Ağızdan/ niyetten gelen jenerik sorgu; isimde kelimenin aynen geçmemesi normal (kategori+ürün ailesi eşleşir).
+     * {@link #productMeetsQueryTextSpecificity} tek-sözcük "zorunlu metin" kuralını bunlar için uygulamaz.
+     */
+    private static final Set<String> GENERIC_INTENT_QUERIES = Set.of(
+            "smartphone", "smartwatch", "book", "books", "laptop", "tablet", "telefon", "headphones",
+            "headphone", "phone", "tv", "tvs"
+    );
 
     /**
      * Sadece çok kelimeli / karışık ifadeler (tek kelime kategori adları token aramasıyla zaten yakalanır).
@@ -82,21 +93,23 @@ public class ChatProductFeedService {
     private static final Pattern EN_IN_THE_CATEGORY = Pattern.compile(
             "(?:in|from)\\s+the\\s+([\\p{L}\\p{N}]{2,})\\s+category",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-    /** recommend books, suggest me headphones */
+    /**
+     * recommend / suggest + çok sözcük (en fazla 4 sözcük); "suggest me men pants" → men pants, "suggest me an iphone" → an iphone (normalize’da a/an/the atılır).
+     */
     private static final Pattern EN_RECOMMEND_SUGGEST = Pattern.compile(
-            "(?:recommend|suggest)(?:\\s+me|\\s+us)?(?:\\s+(?:a|an|the))?\\s+([\\p{L}\\p{N}]{2,})",
+            "(?:recommend|suggest)(?:\\s+me|\\s+us)?\\s+((?:[\\p{L}\\p{N}]+)(?:\\s+[\\p{L}\\p{N}]+){0,3})",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-    /** show me laptops, show headphones */
+    /** show (me) / (us) + birkaç sözcük; "show shoes" (me yok) da geçerli */
     private static final Pattern EN_SHOW_ME = Pattern.compile(
-            "show\\s+(?:me\\s+|us\\s+)?([\\p{L}\\p{N}]{2,})(?:\\s+products?)?\\b",
+            "show\\s+(?:(?:me|us)\\s+)?((?:[\\p{L}\\p{N}]+)(?:\\s+[\\p{L}\\p{N}]+){0,3})(?:\\s+products?)?\\b",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     /** "book products" — en az 3 harf; "rated products" gibi gürültü stopword ile elenir */
     private static final Pattern EN_NOUN_PRODUCTS = Pattern.compile(
             "\\b([\\p{L}\\p{N}]{3,})\\s+products?\\b",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-    /** find laptops, search watches */
+    /** find / search for + birkaç sözcük */
     private static final Pattern EN_FIND_SEARCH = Pattern.compile(
-            "(?:find|search|browse|list)\\s+(?:for\\s+)?([\\p{L}\\p{N}]{2,})",
+            "(?:find|search|browse|list)\\s+(?:for\\s+)?((?:[\\p{L}\\p{N}]+)(?:\\s+[\\p{L}\\p{N}]+){0,3})",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     /** "facebook" / "notebook" içinde yanlış eşleşmeyi engellemek için */
     private static final Pattern EN_BOOK_WORD = Pattern.compile("\\bbooks?\\b", Pattern.CASE_INSENSITIVE);
@@ -133,6 +146,98 @@ public class ChatProductFeedService {
             s.add(w.toLowerCase(LOCALE_TR));
         }
         return s;
+    }
+
+    private static final Set<String> LEADING_ARTICLE_WORDS = Set.of("a", "an", "the");
+    private static final Set<String> TRAILING_NOISE_WORDS = Set.of("please", "thanks", "thank", "plz", "thx");
+
+    /**
+     * Tek başına arama sorgusu olarak çok geniş (ör. "suggest me men" → sadece "men" bir sonraki
+     * denemelere bırakılsın diye ayrı ağırlanır; çok sözcüklü "men pants" buna girmez.
+     */
+    private static final Set<String> WEAK_STANDALONE_QUERIES = Set.of(
+            "men", "women", "woman", "kids", "kid", "girls", "girl", "boys", "boy"
+    );
+
+    /**
+     * Çok sözcüklü sorguda her terimin aynen üründe aranmaz; cinsiyet/segment sözcükleri (men + pants → yalnız "pants" zorunlu).
+     */
+    private static final Set<String> MULTIWORD_OPTIONAL_TOKENS = new HashSet<>();
+
+    static {
+        MULTIWORD_OPTIONAL_TOKENS.addAll(WEAK_STANDALONE_QUERIES);
+        MULTIWORD_OPTIONAL_TOKENS.add("erkek");
+        MULTIWORD_OPTIONAL_TOKENS.add("kadın");
+        MULTIWORD_OPTIONAL_TOKENS.add("kadin");
+        MULTIWORD_OPTIONAL_TOKENS.add("bayan");
+        MULTIWORD_OPTIONAL_TOKENS.add("mens");
+        MULTIWORD_OPTIONAL_TOKENS.add("womens");
+    }
+
+    /**
+     * recommend/suggest/show/find ile yakalanan ifadeyi a/an/the + kırpık nokta ile sadeleştirir.
+     */
+    static String normalizeQueryPhrase(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        t = t.replaceAll("[.!?…]+$", "").trim();
+        String[] parts = t.split("\\s+");
+        if (parts.length == 0) {
+            return null;
+        }
+        List<String> list = new ArrayList<>();
+        for (String p : parts) {
+            if (p == null || p.isEmpty()) {
+                continue;
+            }
+            list.add(p);
+        }
+        while (!list.isEmpty() && LEADING_ARTICLE_WORDS.contains(list.get(0).toLowerCase(Locale.ROOT))) {
+            list.remove(0);
+        }
+        if (list.isEmpty()) {
+            return null;
+        }
+        String last;
+        do {
+            last = list.get(list.size() - 1).toLowerCase(Locale.ROOT);
+            if (TRAILING_NOISE_WORDS.contains(last)) {
+                list.remove(list.size() - 1);
+            } else {
+                break;
+            }
+        } while (!list.isEmpty());
+        if (list.isEmpty()) {
+            return null;
+        }
+        return String.join(" ", list);
+    }
+
+    static boolean isWeakStandaloneQuery(String q) {
+        if (q == null) {
+            return false;
+        }
+        String t = q.trim();
+        if (t.isEmpty()) {
+            return false;
+        }
+        if (t.contains(" ")) {
+            return false;
+        }
+        return WEAK_STANDALONE_QUERIES.contains(t.toLowerCase(Locale.ROOT));
+    }
+
+    private static void sortSearchQueriesInPlace(List<String> queries) {
+        queries.sort(Comparator
+                .comparingInt((String q) -> isWeakStandaloneQuery(q) ? 1 : 0)
+                .thenComparing(Comparator.comparingInt(String::length).reversed())
+                .thenComparing(s -> s.toLowerCase(Locale.ROOT), String::compareTo)
+        );
     }
 
     /**
@@ -227,7 +332,8 @@ public class ChatProductFeedService {
         } else if (phone) {
             list.add("smartphone");
         }
-        boolean applePhone = phone && (en.contains("apple") || tr.contains("apple"));
+        boolean applePhone = phone && (en.contains("apple") || tr.contains("apple")
+                || en.contains("iphone") || tr.contains("iphone"));
         if (applePhone) {
             list.add(0, "iphone");
         }
@@ -297,25 +403,120 @@ public class ChatProductFeedService {
         List<Product> products = loadProductsPreservingOrder(ids);
         products.sort(Comparator.comparing((Product p) -> relevanceScore(p, q, watchAsk, phoneAsk)).reversed());
 
-        int minRelevance = (watchAsk || phoneAsk)
-                ? MIN_RELEVANCE_FOR_STRICT_INTENT
-                : MIN_RELEVANCE_FOR_GENERIC_QUERY;
+        products = products.stream()
+                .filter(p -> productMeetsQueryTextSpecificity(p, q))
+                .collect(Collectors.toList());
+        if (products.isEmpty()) {
+            return List.of();
+        }
+
+        int minRelevance = resolveMinRelevance(watchAsk, phoneAsk, q);
         List<Product> filtered = products.stream()
                 .filter(p -> relevanceScore(p, q, watchAsk, phoneAsk) >= minRelevance)
                 .collect(Collectors.toList());
         if (!filtered.isEmpty()) {
             products = filtered;
         } else {
-            // Sonuç tamamen boşalmasın; yine de tamamen alakasız olanları ele.
             List<Product> softFiltered = products.stream()
                     .filter(p -> relevanceScore(p, q, watchAsk, phoneAsk) > 0)
                     .collect(Collectors.toList());
             if (!softFiltered.isEmpty()) {
                 products = softFiltered;
+            } else {
+                return List.of();
             }
         }
 
         return toCardList(products, preferHighRated);
+    }
+
+    private static String productSearchBlob(Product p) {
+        if (p == null) {
+            return "";
+        }
+        String path = "";
+        String tagName = "";
+        if (p.getTag() != null) {
+            if (p.getTag().getCategoryPath() != null) {
+                path = p.getTag().getCategoryPath();
+            }
+            if (p.getTag().getName() != null) {
+                tagName = p.getTag().getName();
+            }
+        }
+        String name = p.getName() != null ? p.getName() : "";
+        String desc = p.getDescription() != null ? p.getDescription() : "";
+        return (path + " " + tagName + " " + name + " " + desc).toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Genel (tüm kategoriler): çok sözcüklü sorgularda zorunlu terimler; tek sözcükte marka/ürün adı
+     * sinyali (iPhone, pantolon) blob’da yoksa dışla — jenerik niyet sözcükleri hariç.
+     */
+    private static boolean productMeetsQueryTextSpecificity(Product p, String q) {
+        if (p == null || q == null) {
+            return true;
+        }
+        String t = q.trim();
+        if (t.isEmpty()) {
+            return true;
+        }
+        if (t.contains(" ")) {
+            String blob = productSearchBlob(p);
+            for (String part : t.toLowerCase(Locale.ROOT).split("\\s+")) {
+                if (part.length() < 2) {
+                    continue;
+                }
+                if (MULTIWORD_OPTIONAL_TOKENS.contains(part)) {
+                    continue;
+                }
+                if (STOPWORDS_TOKENS.contains(part)) {
+                    continue;
+                }
+                if (!blob.contains(part)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        String qL = t.toLowerCase(Locale.ROOT);
+        if (GENERIC_INTENT_QUERIES.contains(qL)) {
+            return true;
+        }
+        if (qL.length() < 4) {
+            return true;
+        }
+        return productSearchBlob(p).contains(qL);
+    }
+
+    private static int countRequiredQueryTokensForMultiword(String q) {
+        if (q == null || !q.contains(" ")) {
+            return 0;
+        }
+        int n = 0;
+        for (String part : q.trim().toLowerCase(Locale.ROOT).split("\\s+")) {
+            if (part.length() < 2) {
+                continue;
+            }
+            if (MULTIWORD_OPTIONAL_TOKENS.contains(part)) {
+                continue;
+            }
+            if (STOPWORDS_TOKENS.contains(part)) {
+                continue;
+            }
+            n++;
+        }
+        return n;
+    }
+
+    private static int resolveMinRelevance(boolean watchAsk, boolean phoneAsk, String q) {
+        int base = (watchAsk || phoneAsk)
+                ? MIN_RELEVANCE_FOR_STRICT_INTENT
+                : MIN_RELEVANCE_FOR_GENERIC_QUERY;
+        if (q != null && q.contains(" ") && countRequiredQueryTokensForMultiword(q) > 0) {
+            return Math.max(base, MIN_RELEVANCE_FOR_MULTIWORD);
+        }
+        return base;
     }
 
     private Set<Long> resolveSubtreeTagIdsForLiteral(String literal) {
@@ -589,11 +790,11 @@ public class ChatProductFeedService {
         }
         Matcher er = EN_RECOMMEND_SUGGEST.matcher(message);
         if (er.find()) {
-            tryAddQuery(normalizeCapturedCategoryWord(er.group(1)), seen, out);
+            tryAddQuery(normalizeQueryPhrase(er.group(1)), seen, out);
         }
         Matcher es = EN_SHOW_ME.matcher(message);
         if (es.find()) {
-            tryAddQuery(normalizeCapturedCategoryWord(es.group(1)), seen, out);
+            tryAddQuery(normalizeQueryPhrase(es.group(1)), seen, out);
         }
         Matcher enp = EN_NOUN_PRODUCTS.matcher(message);
         if (enp.find()) {
@@ -601,7 +802,7 @@ public class ChatProductFeedService {
         }
         Matcher ef = EN_FIND_SEARCH.matcher(message);
         if (ef.find()) {
-            tryAddQuery(normalizeCapturedCategoryWord(ef.group(1)), seen, out);
+            tryAddQuery(normalizeQueryPhrase(ef.group(1)), seen, out);
         }
 
         if (messageSuggestsOpenCategoryBrowse(message)) {
@@ -610,6 +811,7 @@ public class ChatProductFeedService {
             }
         }
 
+        sortSearchQueriesInPlace(out);
         return out;
     }
 
