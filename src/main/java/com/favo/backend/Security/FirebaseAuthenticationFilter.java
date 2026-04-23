@@ -60,6 +60,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
                 && path.endsWith("/profile-image");
 
         boolean isPublicEndpoint = path.equals("/api/health") || path.contains("/api/health")
+                || path.equals("/api/internal/catalog-import-from-json")
                 || path.contains("/api/tags/search")
                 || path.contains("/api/tags/path")
                 || (path.endsWith("/api/tags") && "POST".equalsIgnoreCase(request.getMethod()))

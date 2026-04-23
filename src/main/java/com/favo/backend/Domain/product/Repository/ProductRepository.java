@@ -102,5 +102,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     /** Admin: ID ile ürün getirir (aktif/pasif fark etmez), tag ile */
     @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id = :id")
     Optional<Product> findByIdWithTagForAdmin(@Param("id") Long id);
+
+    boolean existsByTag_IdAndNameAndIsActiveTrue(Long tagId, String name);
 }
 

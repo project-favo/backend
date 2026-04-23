@@ -49,6 +49,8 @@ public class SecurityConfig {
                         // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
                         .requestMatchers("/api/auth/login", "/api/auth/login/admin", "/api/auth/register", "/api/auth/register/multipart",
                                 "/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password", "/api/health").permitAll()
+                        // Geçici katalog seed — token yok; app.catalog-import.enabled=true iken anlamlı
+                        .requestMatchers(HttpMethod.POST, "/api/internal/catalog-import-from-json").permitAll()
                         // WebSocket handshake endpoint'i - auth, WebSocketAuthInterceptor içinde yapılır
                         .requestMatchers("/ws/**").permitAll()
                         // Me endpoint'leri token gerektirir (authenticated user için - GET, PUT, DELETE)
@@ -76,6 +78,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/products/**").permitAll()
                         // My Reviews: sadece giriş yapmış kullanıcı kendi listesini alır
                         .requestMatchers(HttpMethod.GET, "/api/reviews/me").authenticated()
+                        // Top reviewers endpoint'i kullanıcı bazlıdır (token zorunlu)
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/top-reviewers").authenticated()
                         // Diğer Review GET endpoint'leri public (herkes görebilir)
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
                         // Media GET endpoint'leri public (review'lar public olduğu için media'lar da public)
