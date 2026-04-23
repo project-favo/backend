@@ -3,7 +3,7 @@
 # FIREBASE_SERVICE_ACCOUNT_BASE64: JSON dosyasinin TEK SATIR Base64'u (satir kirilmasi olmasin).
 # firebase.service-account.base64=  (aynı değer, alternatif anahtar)
 #
-# HUGGINGFACE_API_TOKEN veya huggingface.api.token=
+# OPENAI_API_KEY veya openai.api.key=
 #
 # E-posta dogrulama (Gmail App Password): MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM (genelde gonderen = username)
 # Localde mail yok: APP_EMAIL_LOG_CODE_IF_MAIL_DISABLED=true ile kod logda (sadece dev)
