@@ -86,6 +86,19 @@ public interface ProductInteractionRepository extends JpaRepository<ProductInter
            "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true AND pi.targetProduct.isActive = true")
     Page<ProductInteraction> findLikedProductsByPerformerId(@Param("performerId") Long performerId, Pageable pageable);
 
+    /**
+     * Admin: Kullanıcının wishlist ürünlerini aktif/pasif ayrımı yapmadan getirir.
+     */
+    @Query(value = "SELECT DISTINCT pi FROM ProductInteraction pi " +
+           "LEFT JOIN FETCH pi.targetProduct p " +
+           "LEFT JOIN FETCH p.tag t " +
+           "LEFT JOIN FETCH t.parent " +
+           "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true " +
+           "ORDER BY pi.createdAt DESC",
+           countQuery = "SELECT COUNT(pi) FROM ProductInteraction pi " +
+           "WHERE pi.performer.id = :performerId AND pi.type = 'LIKE' AND pi.isActive = true")
+    Page<ProductInteraction> findLikedProductsByPerformerIdForAdmin(@Param("performerId") Long performerId, Pageable pageable);
+
     @Query("SELECT pi FROM ProductInteraction pi " +
            "LEFT JOIN FETCH pi.targetProduct p " +
            "LEFT JOIN FETCH pi.performer u " +

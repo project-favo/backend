@@ -80,7 +80,7 @@ public class AdminService {
     @Transactional(readOnly = true)
     public AdminPageDto<ProductResponseDto> listUserWishlist(Long userId, Pageable pageable) {
         ensureUserExists(userId);
-        Page<ProductInteraction> page = productInteractionRepository.findLikedProductsByPerformerId(userId, pageable);
+        Page<ProductInteraction> page = productInteractionRepository.findLikedProductsByPerformerIdForAdmin(userId, pageable);
         List<ProductResponseDto> content = page.getContent().stream()
                 .map(ProductInteraction::getTargetProduct)
                 .filter(p -> p != null)

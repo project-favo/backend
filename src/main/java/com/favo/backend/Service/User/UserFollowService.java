@@ -74,12 +74,12 @@ public class UserFollowService {
 
     public long getFollowerCount(Long userId) {
         loadActiveGeneralUser(userId);
-        return userFollowRepository.countByFollowee_IdAndIsActiveTrue(userId);
+        return userFollowRepository.countActiveFollowers(userId);
     }
 
     public long getFollowingCount(Long userId) {
         loadActiveGeneralUser(userId);
-        return userFollowRepository.countByFollower_IdAndIsActiveTrue(userId);
+        return userFollowRepository.countActiveFollowing(userId);
     }
 
     public boolean isFollowing(Long followeeUserId, Long currentUserId) {
