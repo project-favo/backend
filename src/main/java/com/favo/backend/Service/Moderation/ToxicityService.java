@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Slf4j
 public class ToxicityService {
 
-    private final HuggingFaceService huggingFaceService;
+    private final OpenAiModerationService openAiModerationService;
     private final ReviewRepository reviewRepository;
     private final ReviewFlagRepository reviewFlagRepository;
 
@@ -28,7 +28,7 @@ public class ToxicityService {
 
     @Transactional
     public void analyzeAndApply(Review review) {
-        ToxicityResultDto result = huggingFaceService.analyze(review.getDescription());
+        ToxicityResultDto result = openAiModerationService.analyze(review.getDescription());
         LocalDateTime now = LocalDateTime.now();
 
         review.setToxicityScore(result.getToxicScore());
@@ -73,6 +73,10 @@ public class ToxicityService {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
         analyzeAndApply(review);
+    }
+
+    public void assertNotFlagged(String text) {
+        openAiModerationService.analyze(text);
     }
 }
 
