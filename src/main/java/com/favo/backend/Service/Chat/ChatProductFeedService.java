@@ -153,6 +153,9 @@ public class ChatProductFeedService {
 
     private static final Set<String> LEADING_ARTICLE_WORDS = Set.of("a", "an", "the");
     private static final Set<String> TRAILING_NOISE_WORDS = Set.of("please", "thanks", "thank", "plz", "thx");
+    private static final Set<String> GREETING_ONLY_WORDS = Set.of(
+            "hi", "hello", "hey", "selam", "merhaba", "slm", "sa", "yo"
+    );
 
     /**
      * Tek başına arama sorgusu olarak çok geniş (ör. "suggest me men" → sadece "men" bir sonraki
@@ -218,7 +221,29 @@ public class ChatProductFeedService {
         if (list.isEmpty()) {
             return null;
         }
-        return String.join(" ", list);
+        return normalizeSingleQueryToken(String.join(" ", list));
+    }
+
+    private static String normalizeSingleQueryToken(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.trim().toLowerCase(Locale.ROOT);
+        if (t.isEmpty()) {
+            return null;
+        }
+        // English plural normalization: puzzles -> puzzle, batteries -> battery, boxes -> box
+        if (!t.contains(" ")) {
+            if (t.length() > 4 && t.endsWith("ies")) {
+                t = t.substring(0, t.length() - 3) + "y";
+            } else if (t.length() > 4 && t.endsWith("es")
+                    && (t.endsWith("ses") || t.endsWith("xes") || t.endsWith("zes") || t.endsWith("ches") || t.endsWith("shes"))) {
+                t = t.substring(0, t.length() - 2);
+            } else if (t.length() > 3 && t.endsWith("s") && !t.endsWith("ss")) {
+                t = t.substring(0, t.length() - 1);
+            }
+        }
+        return t;
     }
 
     static boolean isWeakStandaloneQuery(String q) {
@@ -938,7 +963,10 @@ public class ChatProductFeedService {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        String w = raw.toLowerCase(LOCALE_TR).trim();
+        String w = normalizeSingleQueryToken(raw.toLowerCase(LOCALE_TR).trim());
+        if (w == null || w.isBlank()) {
+            return null;
+        }
         if (STOPWORDS_FOR_CATEGORY.contains(w) || STOPWORDS_TOKENS.contains(w)) {
             return null;
         }
@@ -1032,11 +1060,28 @@ public class ChatProductFeedService {
             "^(daha\\s+fazla|devam|aynı|ayni|başka|baska)(\\s+\\p{L}+){0,4}$",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
+    private static boolean isGreetingOnly(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        String m = message.trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[.!?,;:…]+$", "")
+                .trim();
+        if (m.isEmpty()) {
+            return false;
+        }
+        return GREETING_ONLY_WORDS.contains(m);
+    }
+
     /**
      * Kısa onay / devam (“evet”, “yes”, “tamam”); önceki turda ürün niyeti varsa {@link #buildFeed} retrieval ile birleştirir.
      */
     static boolean isShortContinuation(String message) {
         if (message == null || message.isBlank()) {
+            return false;
+        }
+        if (isGreetingOnly(message)) {
             return false;
         }
         String m = message.trim().replaceAll("[.!?…]+$", "").trim();
