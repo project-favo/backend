@@ -64,8 +64,5 @@ public class ToxicityService {
         analyzeAndApply(review);
     }
 
-    public void assertNotFlagged(String text) {
-        openAiModerationService.assertNotFlagged(text);
-    }
 }
 
