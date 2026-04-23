@@ -45,6 +45,35 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getUser(id));
     }
 
+    /**
+     * GET /api/admin/users/{id}/flagged-products?page=0&size=20&activeOnly=true
+     * Kullanıcının flaglediği review'lerin ürünlerini listeler.
+     */
+    @GetMapping("/users/{id}/flagged-products")
+    public ResponseEntity<AdminPageDto<ProductResponseDto>> listUserFlaggedProducts(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "true") boolean activeOnly
+    ) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        return ResponseEntity.ok(adminService.listUserFlaggedProducts(id, activeOnly, pageable));
+    }
+
+    /**
+     * GET /api/admin/users/{id}/wishlist?page=0&size=20
+     * Kullanıcının wishlist (LIKE) ürünlerini listeler.
+     */
+    @GetMapping("/users/{id}/wishlist")
+    public ResponseEntity<AdminPageDto<ProductResponseDto>> listUserWishlist(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        return ResponseEntity.ok(adminService.listUserWishlist(id, pageable));
+    }
+
     @PatchMapping("/users/{id}/deactivate")
     public ResponseEntity<Void> deactivateUser(@PathVariable Long id) {
         adminService.deactivateUser(id);

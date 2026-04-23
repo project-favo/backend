@@ -103,6 +103,38 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id = :id")
     Optional<Product> findByIdWithTagForAdmin(@Param("id") Long id);
 
+    /**
+     * Admin: Belirli bir kullanıcının flaglediği review'lere ait ürünleri (aktif+pasif) sayfalı getirir.
+     */
+    @Query(value = "SELECT DISTINCT p FROM ReviewFlag rf " +
+            "JOIN rf.review r " +
+            "JOIN r.product p " +
+            "LEFT JOIN FETCH p.tag t " +
+            "LEFT JOIN FETCH t.parent " +
+            "WHERE rf.reportedBy.id = :userId AND rf.isActive = true " +
+            "ORDER BY p.id DESC",
+            countQuery = "SELECT COUNT(DISTINCT p) FROM ReviewFlag rf " +
+                    "JOIN rf.review r " +
+                    "JOIN r.product p " +
+                    "WHERE rf.reportedBy.id = :userId AND rf.isActive = true")
+    Page<Product> findFlaggedProductsByReporterId(@Param("userId") Long userId, Pageable pageable);
+
+    /**
+     * Admin: Belirli bir kullanıcının flaglediği review'lere ait sadece aktif ürünleri sayfalı getirir.
+     */
+    @Query(value = "SELECT DISTINCT p FROM ReviewFlag rf " +
+            "JOIN rf.review r " +
+            "JOIN r.product p " +
+            "LEFT JOIN FETCH p.tag t " +
+            "LEFT JOIN FETCH t.parent " +
+            "WHERE rf.reportedBy.id = :userId AND rf.isActive = true AND p.isActive = true " +
+            "ORDER BY p.id DESC",
+            countQuery = "SELECT COUNT(DISTINCT p) FROM ReviewFlag rf " +
+                    "JOIN rf.review r " +
+                    "JOIN r.product p " +
+                    "WHERE rf.reportedBy.id = :userId AND rf.isActive = true AND p.isActive = true")
+    Page<Product> findActiveFlaggedProductsByReporterId(@Param("userId") Long userId, Pageable pageable);
+
     boolean existsByTag_IdAndNameAndIsActiveTrue(Long tagId, String name);
 }
 

@@ -34,22 +34,11 @@ public class ToxicityService {
         review.setToxicityScore(result.getToxicScore());
         review.setToxicityCheckedAt(now);
 
-        Double score = result.getToxicScore();
-        if (score == null) {
-            review.setModerationStatus(ModerationStatus.APPROVED);
-            reviewRepository.save(review);
-            return;
-        }
-
-        if (score >= 0.80) {
+        if (result.isToxic()) {
             review.setAutoFlagged(true);
             review.setModerationStatus(ModerationStatus.AUTO_FLAGGED);
             review.setIsActive(false);
-            createAiFlag(review, score, now);
-        } else if (score >= 0.50) {
-            review.setAutoFlagged(true);
-            review.setModerationStatus(ModerationStatus.AUTO_FLAGGED);
-            createAiFlag(review, score, now);
+            createAiFlag(review, now, result.getToxicScore());
         } else {
             review.setModerationStatus(ModerationStatus.APPROVED);
         }
@@ -57,12 +46,12 @@ public class ToxicityService {
         reviewRepository.save(review);
     }
 
-    private void createAiFlag(Review review, Double score, LocalDateTime now) {
+    private void createAiFlag(Review review, LocalDateTime now, Double toxicityScore) {
         ReviewFlag flag = new ReviewFlag();
         flag.setReview(review);
         flag.setReportedBy(null);
         flag.setReason(FlagReason.TOXIC_LANGUAGE);
-        flag.setNotes("Auto-flagged by AI. Score: " + score);
+        flag.setNotes("Auto-flagged by OpenAI Moderation (toxicityScore>70). Score: " + toxicityScore);
         flag.setCreatedAt(now);
         flag.setIsActive(true);
         reviewFlagRepository.save(flag);
@@ -76,7 +65,7 @@ public class ToxicityService {
     }
 
     public void assertNotFlagged(String text) {
-        openAiModerationService.analyze(text);
+        openAiModerationService.assertNotFlagged(text);
     }
 }
 

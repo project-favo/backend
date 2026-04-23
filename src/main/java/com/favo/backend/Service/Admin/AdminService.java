@@ -65,12 +65,42 @@ public class AdminService {
         return userMapper.toDto(user);
     }
 
+    @Transactional(readOnly = true)
+    public AdminPageDto<ProductResponseDto> listUserFlaggedProducts(Long userId, boolean activeOnly, Pageable pageable) {
+        ensureUserExists(userId);
+        Page<Product> page = activeOnly
+                ? productRepository.findActiveFlaggedProductsByReporterId(userId, pageable)
+                : productRepository.findFlaggedProductsByReporterId(userId, pageable);
+        List<ProductResponseDto> content = page.getContent().stream()
+                .map(ProductMapper::toDto)
+                .collect(Collectors.toList());
+        return new AdminPageDto<>(content, page.getTotalElements(), page.getTotalPages(), page.getSize(), page.getNumber());
+    }
+
+    @Transactional(readOnly = true)
+    public AdminPageDto<ProductResponseDto> listUserWishlist(Long userId, Pageable pageable) {
+        ensureUserExists(userId);
+        Page<ProductInteraction> page = productInteractionRepository.findLikedProductsByPerformerId(userId, pageable);
+        List<ProductResponseDto> content = page.getContent().stream()
+                .map(ProductInteraction::getTargetProduct)
+                .filter(p -> p != null)
+                .map(ProductMapper::toDto)
+                .collect(Collectors.toList());
+        return new AdminPageDto<>(content, page.getTotalElements(), page.getTotalPages(), page.getSize(), page.getNumber());
+    }
+
     public void deactivateUser(Long userId) {
         userService.deactivateUser(userId);
     }
 
     public void activateUser(Long userId) {
         userService.activateUser(userId);
+    }
+
+    private void ensureUserExists(Long userId) {
+        if (!systemUserRepository.existsById(userId)) {
+            throw new RuntimeException("User not found with id: " + userId);
+        }
     }
 
     // ---- Products ----
