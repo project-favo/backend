@@ -5,6 +5,7 @@ import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.review.*;
 import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
+import com.favo.backend.Domain.review.Repository.TopReviewerProjection;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Moderation.ToxicityService;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -171,6 +173,23 @@ public class ReviewService {
             throw new RuntimeException("Authentication required");
         }
         return getReviewsByUserId(user.getId(), user.getId());
+    }
+
+    /**
+     * En çok review yapan kullanıcıları getirir.
+     * Yalnızca aktif review'lar ve aktif kullanıcılar sayılır.
+     */
+    public List<TopReviewerResponseDto> getTopReviewers(Integer limit) {
+        int safeLimit = (limit == null || limit <= 0) ? 5 : Math.min(limit, 50);
+        List<TopReviewerProjection> rows = reviewRepository.findTopReviewers(PageRequest.of(0, safeLimit));
+        return rows.stream()
+                .map(row -> new TopReviewerResponseDto(
+                        row.getUserId(),
+                        row.getUserName(),
+                        profileImageUrlService.buildProfileImageUrl(row.getUserId()),
+                        row.getReviewCount()
+                ))
+                .collect(Collectors.toList());
     }
 
     /**

@@ -4,6 +4,7 @@ import com.favo.backend.Domain.review.FlagRequestDto;
 import com.favo.backend.Domain.review.FlagResponseDto;
 import com.favo.backend.Domain.review.ReviewRequestDto;
 import com.favo.backend.Domain.review.ReviewResponseDto;
+import com.favo.backend.Domain.review.TopReviewerResponseDto;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.ReviewService;
@@ -148,6 +149,23 @@ public class ReviewController {
         Long currentUserId = user != null ? user.getId() : null;
         List<ReviewResponseDto> reviews = reviewService.getReviewsByUserId(userId, currentUserId);
         return ResponseEntity.ok(reviews);
+    }
+
+    /**
+     * En çok review yapan kullanıcıları döner (default: 5).
+     * Bu endpoint user-based token gerektirir.
+     */
+    @GetMapping("/top-reviewers")
+    public ResponseEntity<?> getTopReviewers(
+            @RequestParam(defaultValue = "5") Integer limit,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Authentication required");
+        }
+        List<TopReviewerResponseDto> topUsers = reviewService.getTopReviewers(limit);
+        return ResponseEntity.ok(topUsers);
     }
 
     /**

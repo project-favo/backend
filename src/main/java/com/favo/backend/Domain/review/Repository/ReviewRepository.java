@@ -99,5 +99,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
             @Param("productId") Long productId,
             @Param("excludeOwnerId") Long excludeOwnerId
     );
+
+    @Query("SELECT r.owner.id AS userId, r.owner.userName AS userName, COUNT(r) AS reviewCount " +
+           "FROM Review r " +
+           "WHERE r.isActive = true AND r.owner.isActive = true " +
+           "GROUP BY r.owner.id, r.owner.userName " +
+           "ORDER BY COUNT(r) DESC, r.owner.id ASC")
+    List<TopReviewerProjection> findTopReviewers(Pageable pageable);
 }
 
