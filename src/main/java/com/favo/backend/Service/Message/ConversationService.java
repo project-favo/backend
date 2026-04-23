@@ -6,6 +6,7 @@ import com.favo.backend.Domain.message.Repository.MessageRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
+import com.favo.backend.Service.Notification.PushNotificationService;
 import com.favo.backend.Service.User.ProfileImageUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class ConversationService {
     private final SystemUserRepository systemUserRepository;
     private final ProfileImageUrlService profileImageUrlService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PushNotificationService pushNotificationService;
 
     public Conversation getOrCreateConversation(Long currentUserId, Long recipientId) {
         if (currentUserId == null || recipientId == null) {
@@ -100,6 +102,13 @@ public class ConversationService {
             log.warn("Failed to send STOMP message for conversation {}: {}", conversation.getId(), e.getMessage());
         }
 
+        Long recipientUserId = resolveRecipientUserId(conversation, currentUserId);
+        pushNotificationService.notifyDirectMessage(
+                recipientUserId,
+                sender.getUserName() + " sana mesaj atti",
+                dto.getContent()
+        );
+
         return dto;
     }
 
@@ -120,6 +129,7 @@ public class ConversationService {
         Conversation conversation = getConversationForUserOrThrow(conversationId, currentUserId);
 
         messageRepository.markAsReadForConversationAndUser(conversation.getId(), currentUserId);
+        pushNotificationService.syncBadgeOnly(currentUserId);
 
         Page<Message> page = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId(), pageable);
         return page.map(this::toMessageDto);
@@ -179,6 +189,13 @@ public class ConversationService {
                 message.getCreatedAt(),
                 message.isRead()
         );
+    }
+
+    private static Long resolveRecipientUserId(Conversation conversation, Long senderUserId) {
+        Long p1 = conversation.getParticipant1().getId();
+        return senderUserId.equals(p1)
+                ? conversation.getParticipant2().getId()
+                : p1;
     }
 
     private ConversationDto toConversationDto(Conversation conversation, Long currentUserId) {

@@ -2,8 +2,11 @@ package com.favo.backend.controller;
 
 import com.favo.backend.Domain.notification.InAppNotificationDto;
 import com.favo.backend.Domain.notification.NotificationUnreadCountDto;
+import com.favo.backend.Domain.notification.PushTokenUpsertRequestDto;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Notification.AppNotificationService;
+import com.favo.backend.Service.Notification.PushNotificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class NotificationController {
 
     private final AppNotificationService appNotificationService;
+    private final PushNotificationService pushNotificationService;
 
     @GetMapping
     public ResponseEntity<Page<InAppNotificationDto>> list(
@@ -30,6 +34,16 @@ public class NotificationController {
     @GetMapping("/unread-count")
     public ResponseEntity<NotificationUnreadCountDto> unreadCount(@AuthenticationPrincipal SystemUser user) {
         return ResponseEntity.ok(new NotificationUnreadCountDto(appNotificationService.unreadCount(user.getId())));
+    }
+
+    @PostMapping("/push-token")
+    public ResponseEntity<Void> upsertPushToken(
+            @AuthenticationPrincipal SystemUser user,
+            @Valid @RequestBody PushTokenUpsertRequestDto request
+    ) {
+        pushNotificationService.registerToken(user, request.getToken(), request.getPlatform());
+        pushNotificationService.syncBadgeOnly(user.getId());
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/read")

@@ -39,6 +39,7 @@ public class AppNotificationService {
     private final ReviewRepository reviewRepository;
     private final ProfileImageUrlService profileImageUrlService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PushNotificationService pushNotificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional(readOnly = true)
@@ -57,6 +58,7 @@ public class AppNotificationService {
         int n = notificationRepository.markRead(notificationId, recipientId, LocalDateTime.now());
         if (n > 0) {
             pushToUser(recipientId, new NotificationPushDto(unreadCount(recipientId), null));
+            pushNotificationService.syncBadgeOnly(recipientId);
         }
     }
 
@@ -64,6 +66,7 @@ public class AppNotificationService {
     public void markAllRead(Long recipientId) {
         notificationRepository.markAllRead(recipientId, LocalDateTime.now());
         pushToUser(recipientId, new NotificationPushDto(0, null));
+        pushNotificationService.syncBadgeOnly(recipientId);
     }
 
     @Transactional
@@ -71,6 +74,7 @@ public class AppNotificationService {
         int n = notificationRepository.softDelete(notificationId, recipientId);
         if (n > 0) {
             pushToUser(recipientId, new NotificationPushDto(unreadCount(recipientId), null));
+            pushNotificationService.syncBadgeOnly(recipientId);
         }
     }
 
@@ -79,6 +83,7 @@ public class AppNotificationService {
         int n = notificationRepository.softDeleteAll(recipientId);
         if (n > 0) {
             pushToUser(recipientId, new NotificationPushDto(0, null));
+            pushNotificationService.syncBadgeOnly(recipientId);
         }
     }
 
@@ -175,6 +180,7 @@ public class AppNotificationService {
         InAppNotification saved = notificationRepository.save(n);
         InAppNotificationDto dto = toDto(saved);
         pushToUser(recipient.getId(), new NotificationPushDto(unreadCount(recipient.getId()), dto));
+        pushNotificationService.notifyInAppEvent(recipient.getId(), type, title, body);
     }
 
     private void pushToUser(long userId, NotificationPushDto payload) {
