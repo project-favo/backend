@@ -53,8 +53,6 @@ public class ReviewService {
             throw new RuntimeException("Rating must be between 1 and 5");
         }
 
-        toxicityService.assertNotFlagged(buildModerationInput(request.getTitle(), request.getDescription()));
-
         // Review oluştur
         Review review = new Review();
         review.setTitle(request.getTitle());
@@ -212,7 +210,6 @@ public class ReviewService {
             review.setTitle(request.getTitle());
         }
         if (request.getDescription() != null) {
-            toxicityService.assertNotFlagged(buildModerationInput(request.getTitle(), request.getDescription()));
             review.setDescription(request.getDescription());
         }
         if (request.getIsCollaborative() != null) {
@@ -283,10 +280,5 @@ public class ReviewService {
         return reviewRepository.calculateAverageRatingByProductId(productId);
     }
 
-    private String buildModerationInput(String title, String description) {
-        String safeTitle = title == null ? "" : title;
-        String safeDescription = description == null ? "" : description;
-        return (safeTitle + " " + safeDescription).trim();
-    }
 }
 
