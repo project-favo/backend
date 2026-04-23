@@ -32,7 +32,7 @@ public class OpenAiModerationService {
 
     private final RestTemplate restTemplate;
     private final Environment environment;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${openai.moderation.url:https://api.openai.com/v1/chat/completions}")
     private String moderationUrl;
