@@ -21,6 +21,7 @@ import java.util.Map;
 public class OpenAiModerationService {
 
     private static final String MODERATION_MODEL = "omni-moderation-latest";
+    private static final int TOXICITY_THRESHOLD = 70;
 
     private final RestTemplate restTemplate;
     private final Environment environment;
@@ -52,13 +53,8 @@ public class OpenAiModerationService {
 
             ResponseEntity<Object> response = restTemplate.postForEntity(moderationUrl, entity, Object.class);
             Map<?, ?> responseMap = response.getBody() instanceof Map<?, ?> m ? m : null;
-            ToxicityResultDto result = extractResult(responseMap);
-            if (result.isToxic()) {
-                throw new RuntimeException("Text violates moderation policy");
-            }
-            return result;
-        } catch (RuntimeException ex) {
-            throw ex;
+            log.info("OpenAI moderation raw response: {}", responseMap);
+            return extractResult(responseMap);
         } catch (Exception ex) {
             log.warn("OpenAI moderation call failed: {}", ex.getMessage());
             return new ToxicityResultDto(null, false);
@@ -77,22 +73,23 @@ public class OpenAiModerationService {
         if (!(firstObj instanceof Map<?, ?> first)) {
             return new ToxicityResultDto(null, false);
         }
-
-        boolean flagged = Boolean.TRUE.equals(first.get("flagged"));
-        Double maxScore = extractMaxCategoryScore(first.get("category_scores"));
-        return new ToxicityResultDto(maxScore, flagged);
+        int toxicityScore = extractToxicityScore(first.get("category_scores"));
+        log.info("Hesaplanan Maksimum Toksisite Skoru: {}", toxicityScore);
+        boolean isToxic = toxicityScore > TOXICITY_THRESHOLD;
+        return new ToxicityResultDto((double) toxicityScore, isToxic);
     }
 
-    private Double extractMaxCategoryScore(Object categoryScoresObj) {
+    private int extractToxicityScore(Object categoryScoresObj) {
         if (!(categoryScoresObj instanceof Map<?, ?> categoryScores) || categoryScores.isEmpty()) {
-            return null;
+            return 0;
         }
-        return categoryScores.values().stream()
+        double maxRisk = categoryScores.values().stream()
                 .filter(Number.class::isInstance)
                 .map(Number.class::cast)
                 .map(Number::doubleValue)
                 .max(Double::compareTo)
-                .orElse(null);
+                .orElse(0.0);
+        return (int) Math.round(maxRisk * 100.0);
     }
 
     private String resolveOpenAiApiKey() {
@@ -109,6 +106,13 @@ public class OpenAiModerationService {
 
     private static String trimToEmpty(String s) {
         return s == null ? "" : s.trim();
+    }
+
+    public void assertNotFlagged(String text) {
+        ToxicityResultDto result = analyze(text);
+        if (result.isToxic()) {
+            throw new RuntimeException("Yorum reddedildi");
+        }
     }
 }
 
