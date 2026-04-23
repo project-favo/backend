@@ -38,10 +38,13 @@ public class ChatProductFeedService {
     private static final int CANDIDATE_POOL = 40;
     private static final int MAX_LIKES_FOR_TAGS = 25;
     private static final int MAX_TAG_IDS = 50;
+    private static final int MAX_PREFERRED_TAGS_FROM_LIKES = 3;
+    private static final double MIN_DOMINANT_CATEGORY_SHARE = 0.55;
     private static final int MIN_RELEVANCE_FOR_STRICT_INTENT = 35;
     private static final int MIN_RELEVANCE_FOR_GENERIC_QUERY = 25;
     /** Q birden çok sözcük olduğunda (ve zorunlu terimler varsa) eşik yükser; çapraz kategori sızmasını azaltır. */
     private static final int MIN_RELEVANCE_FOR_MULTIWORD = 32;
+    private static final int MIN_RESULTS_AFTER_GUARDRAILS = 2;
 
     /**
      * Ağızdan/ niyetten gelen jenerik sorgu; isimde kelimenin aynen geçmemesi normal (kategori+ürün ailesi eşleşir).
@@ -295,7 +298,9 @@ public class ChatProductFeedService {
             return List.of();
         }
 
-        if (user instanceof GeneralUser gu && wantsLikesBasedRecommendation(userMessage)) {
+        boolean likesBasedAsk = wantsLikesBasedRecommendation(userMessage)
+                || (shortContinuation && wantsLikesBasedRecommendation(retrieval));
+        if (user instanceof GeneralUser gu && likesBasedAsk) {
             return buildFromLikedTags(gu, preferHighRated);
         }
 
@@ -427,7 +432,83 @@ public class ChatProductFeedService {
             }
         }
 
+        products = enforceCategoryCoherence(products);
+        if (products.size() < MIN_RESULTS_AFTER_GUARDRAILS) {
+            return List.of();
+        }
+
         return toCardList(products, preferHighRated);
+    }
+
+    /**
+     * İlk adaylarda belirgin bir kategori baskınsa (aynı üst yol), karışık kategorileri eleyip
+     * öneri kartlarını tek bağlamda tutar.
+     */
+    private static List<Product> enforceCategoryCoherence(List<Product> ranked) {
+        if (ranked == null || ranked.size() < 4) {
+            return ranked != null ? ranked : List.of();
+        }
+        int window = Math.min(12, ranked.size());
+        Map<String, Integer> freq = new LinkedHashMap<>();
+        int usable = 0;
+        for (int i = 0; i < window; i++) {
+            String anchor = categoryAnchor(ranked.get(i));
+            if (anchor == null || anchor.isBlank()) {
+                continue;
+            }
+            usable++;
+            freq.put(anchor, freq.getOrDefault(anchor, 0) + 1);
+        }
+        if (usable < 3 || freq.isEmpty()) {
+            return ranked;
+        }
+        String winner = null;
+        int winnerCount = 0;
+        for (Map.Entry<String, Integer> e : freq.entrySet()) {
+            if (e.getValue() > winnerCount) {
+                winner = e.getKey();
+                winnerCount = e.getValue();
+            }
+        }
+        if (winner == null) {
+            return ranked;
+        }
+        double share = (double) winnerCount / (double) usable;
+        if (share < MIN_DOMINANT_CATEGORY_SHARE) {
+            return ranked;
+        }
+        final String winnerAnchor = winner;
+
+        List<Product> narrowed = ranked.stream()
+                .filter(p -> winnerAnchor.equals(categoryAnchor(p)))
+                .collect(Collectors.toList());
+        return narrowed.size() >= MIN_RESULTS_AFTER_GUARDRAILS ? narrowed : ranked;
+    }
+
+    private static String categoryAnchor(Product p) {
+        if (p == null || p.getTag() == null || p.getTag().getCategoryPath() == null) {
+            return null;
+        }
+        String path = p.getTag().getCategoryPath().trim();
+        if (path.isEmpty()) {
+            return null;
+        }
+        String normalized = path.replace("/", ">");
+        String[] parts = normalized.split(">");
+        List<String> cleaned = new ArrayList<>();
+        for (String part : parts) {
+            String t = part == null ? "" : part.trim().toLowerCase(Locale.ROOT);
+            if (!t.isEmpty()) {
+                cleaned.add(t);
+            }
+            if (cleaned.size() >= 2) {
+                break;
+            }
+        }
+        if (cleaned.isEmpty()) {
+            return null;
+        }
+        return String.join(">", cleaned);
     }
 
     private static String productSearchBlob(Product p) {
@@ -642,15 +723,16 @@ public class ChatProductFeedService {
     /** Sadece kullanıcı açıkça “beğendiklerime göre” dediyse */
     private List<ChatProductCardDto> buildFromLikedTags(GeneralUser gu, boolean preferHighRated) {
         Set<Long> likedIds = loadLikedProductIds(gu);
-        Set<Long> tagIds = loadPreferredTagIdsFromLikes(gu);
+        List<Long> preferredTagIds = loadPreferredTagIdsFromLikes(gu);
 
         List<Long> candidateIds;
-        if (tagIds.isEmpty()) {
-            candidateIds = newestActiveProductIds(CANDIDATE_POOL, 0);
+        if (preferredTagIds.isEmpty()) {
+            // Likes niyeti varken newest fallback alakasiz sonuc uretiyor.
+            return List.of();
         } else {
             Page<Long> page = productRepository.searchProductIds(
                     null,
-                    new ArrayList<>(tagIds),
+                    preferredTagIds,
                     null,
                     PageRequest.of(0, CANDIDATE_POOL)
             );
@@ -658,7 +740,7 @@ public class ChatProductFeedService {
                     .filter(id -> !likedIds.contains(id))
                     .toList();
             if (candidateIds.isEmpty()) {
-                candidateIds = newestActiveProductIds(CANDIDATE_POOL, 0);
+                return List.of();
             }
         }
 
@@ -697,19 +779,42 @@ public class ChatProductFeedService {
         return ids;
     }
 
-    private Set<Long> loadPreferredTagIdsFromLikes(GeneralUser gu) {
+    private List<Long> loadPreferredTagIdsFromLikes(GeneralUser gu) {
         var page = productInteractionRepository.findLikedProductsByPerformerId(
                 gu.getId(),
                 PageRequest.of(0, MAX_LIKES_FOR_TAGS)
         );
-        Set<Long> tagIds = new HashSet<>();
+        Map<Long, Integer> tagFreq = new LinkedHashMap<>();
+        int total = 0;
         for (ProductInteraction pi : page.getContent()) {
             Product p = pi.getTargetProduct();
             if (p != null && p.getTag() != null && Boolean.TRUE.equals(p.getIsActive())) {
-                tagIds.add(p.getTag().getId());
+                Long tagId = p.getTag().getId();
+                tagFreq.put(tagId, tagFreq.getOrDefault(tagId, 0) + 1);
+                total++;
             }
         }
-        return tagIds;
+        if (tagFreq.isEmpty()) {
+            return List.of();
+        }
+
+        final int totalLikes = Math.max(total, 1);
+        List<Map.Entry<Long, Integer>> sorted = tagFreq.entrySet().stream()
+                .sorted(Map.Entry.<Long, Integer>comparingByValue().reversed())
+                .toList();
+
+        List<Long> selected = sorted.stream()
+                .filter(e -> e.getValue() >= 2 || ((double) e.getValue() / (double) totalLikes) >= 0.34)
+                .map(Map.Entry::getKey)
+                .limit(MAX_PREFERRED_TAGS_FROM_LIKES)
+                .toList();
+        if (!selected.isEmpty()) {
+            return selected;
+        }
+        return sorted.stream()
+                .map(Map.Entry::getKey)
+                .limit(1)
+                .toList();
     }
 
     private List<Product> loadProductsPreservingOrder(List<Long> ids) {
@@ -907,12 +1012,16 @@ public class ChatProductFeedService {
         return m.contains("beğendiğim") || m.contains("beğendiklerim") || m.contains("beğendiklerime")
                 || m.contains("begen digim") || m.contains("begen diklerim")
                 || m.contains("favorilerim") || m.contains("favorilerime")
+                || m.contains("ilgi alanım") || m.contains("ilgi alanlarım")
+                || m.contains("ilgi alanima gore") || m.contains("ilgime göre")
                 || m.contains("wishlist") || m.contains("wish list")
                 || (m.contains("beğen") && m.contains("göre"))
                 || (m.contains("begen") && m.contains("gore"))
                 || e.contains("based on my likes") || e.contains("from my likes")
                 || e.contains("from my favorites") || e.contains("from my favourites")
-                || e.contains("like my favorites") || e.contains("similar to what i liked");
+                || e.contains("like my favorites") || e.contains("similar to what i liked")
+                || e.contains("my interests") || e.contains("according to my interests")
+                || e.contains("based on my interests") || e.contains("based on my history");
     }
 
     private static final Pattern SHORT_CONTINUATION_TR_EN = Pattern.compile(
