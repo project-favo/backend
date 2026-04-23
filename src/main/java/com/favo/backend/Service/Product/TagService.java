@@ -79,9 +79,10 @@ public class TagService {
      * Belirli bir parent'ın child'larını getir
      */
     public List<TagDto> getChildrenByParentId(Long parentId) {
-        List<Tag> children = tagRepository.findByParentId(parentId);
+        tagRepository.findByIdAndIsActiveTrue(parentId)
+                .orElseThrow(() -> new RuntimeException("Parent tag not found with id: " + parentId));
+        List<Tag> children = tagRepository.findByParentIdAndIsActiveTrue(parentId);
         return children.stream()
-                .filter(tag -> Boolean.TRUE.equals(tag.getIsActive()))
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
@@ -159,7 +160,7 @@ public class TagService {
      * Category path'e göre tag getir
      */
     public TagDto getTagByPath(String categoryPath) {
-        Tag tag = tagRepository.findByCategoryPath(categoryPath)
+        Tag tag = tagRepository.findByCategoryPathAndIsActiveTrue(categoryPath)
                 .orElseThrow(() -> new RuntimeException("Tag not found with path: " + categoryPath));
         return buildTagTree(tag);
     }
@@ -168,7 +169,7 @@ public class TagService {
      * ID'ye göre tag getir (tree ile birlikte)
      */
     public TagDto getTagById(Long id) {
-        Tag tag = tagRepository.findById(id)
+        Tag tag = tagRepository.findByIdAndIsActiveTrue(id)
                 .orElseThrow(() -> new RuntimeException("Tag not found with id: " + id));
         return buildTagTree(tag);
     }

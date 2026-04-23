@@ -16,14 +16,22 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
 
     Optional<UserFollow> findByFollower_IdAndFollowee_Id(Long followerId, Long followeeId);
 
-    long countByFollowee_IdAndIsActiveTrue(Long followeeId);
+    @Query("SELECT COUNT(uf) FROM UserFollow uf " +
+           "WHERE uf.followee.id = :followeeId AND uf.isActive = true " +
+           "AND uf.follower.isActive = true AND uf.followee.isActive = true")
+    long countActiveFollowers(@Param("followeeId") Long followeeId);
 
-    long countByFollower_IdAndIsActiveTrue(Long followerId);
+    @Query("SELECT COUNT(uf) FROM UserFollow uf " +
+           "WHERE uf.follower.id = :followerId AND uf.isActive = true " +
+           "AND uf.follower.isActive = true AND uf.followee.isActive = true")
+    long countActiveFollowing(@Param("followerId") Long followerId);
 
-    @Query("SELECT uf FROM UserFollow uf WHERE uf.followee.id = :userId AND uf.isActive = true ORDER BY uf.createdAt DESC")
+    @Query("SELECT uf FROM UserFollow uf WHERE uf.followee.id = :userId AND uf.isActive = true " +
+           "AND uf.follower.isActive = true AND uf.followee.isActive = true ORDER BY uf.createdAt DESC")
     Page<UserFollow> findFollowersPage(@Param("userId") Long followeeId, Pageable pageable);
 
-    @Query("SELECT uf FROM UserFollow uf WHERE uf.follower.id = :userId AND uf.isActive = true ORDER BY uf.createdAt DESC")
+    @Query("SELECT uf FROM UserFollow uf WHERE uf.follower.id = :userId AND uf.isActive = true " +
+           "AND uf.follower.isActive = true AND uf.followee.isActive = true ORDER BY uf.createdAt DESC")
     Page<UserFollow> findFollowingPage(@Param("userId") Long followerId, Pageable pageable);
 
     @Query("SELECT uf.followee.id FROM UserFollow uf WHERE uf.follower.id = :followerId AND uf.isActive = true")

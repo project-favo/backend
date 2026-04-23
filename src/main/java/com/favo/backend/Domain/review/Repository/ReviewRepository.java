@@ -29,7 +29,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
            "LEFT JOIN FETCH r.mediaList m " +
-           "WHERE r.id = :id AND r.isActive = true")
+           "WHERE r.id = :id AND r.isActive = true AND p.isActive = true AND o.isActive = true")
     Optional<Review> findByIdWithRelations(@Param("id") Long id);
 
     /**
@@ -40,7 +40,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
            "LEFT JOIN FETCH r.mediaList m " +
-           "WHERE r.product.id = :productId AND r.isActive = true")
+           "WHERE r.product.id = :productId AND r.isActive = true AND p.isActive = true AND o.isActive = true")
     List<Review> findByProductIdWithRelations(@Param("productId") Long productId);
 
     /**
@@ -51,7 +51,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
            "LEFT JOIN FETCH r.mediaList m " +
-           "WHERE r.owner.id = :ownerId AND r.isActive = true ORDER BY r.createdAt DESC")
+           "WHERE r.owner.id = :ownerId AND r.isActive = true AND p.isActive = true AND o.isActive = true ORDER BY r.createdAt DESC")
     List<Review> findByOwnerIdWithRelations(@Param("ownerId") Long ownerId);
 
     @Query("SELECT r FROM Review r " +

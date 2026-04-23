@@ -24,6 +24,10 @@ public class UserProfileImageController {
 
     @GetMapping("/{userId}/profile-image")
     public ResponseEntity<byte[]> getProfileImage(@PathVariable Long userId) {
+        var user = userService.getById(userId);
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            return ResponseEntity.notFound().build();
+        }
         ProfilePhoto photo = userService.getActiveProfilePhoto(userId);
         if (photo == null || photo.getImageData() == null || photo.getImageData().length == 0) {
             return ResponseEntity.notFound().build();
