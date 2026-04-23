@@ -16,19 +16,20 @@ import java.time.LocalDateTime;
 @Slf4j
 public class ToxicityService {
 
-    private final OpenAiModerationService openAiModerationService;
+    private final HuggingFaceService huggingFaceService;
     private final ReviewRepository reviewRepository;
     private final ReviewFlagRepository reviewFlagRepository;
 
     @Async
     @Transactional
     public void analyzeAndApplyAsync(Long reviewId) {
+        log.info("Toxicity analyze triggered for reviewId={}", reviewId);
         reviewRepository.findById(reviewId).ifPresent(this::analyzeAndApply);
     }
 
     @Transactional
     public void analyzeAndApply(Review review) {
-        ToxicityResultDto result = openAiModerationService.analyze(review.getDescription());
+        ToxicityResultDto result = huggingFaceService.analyze(review.getDescription());
         LocalDateTime now = LocalDateTime.now();
 
         review.setToxicityScore(result.getToxicScore());
@@ -51,7 +52,7 @@ public class ToxicityService {
         flag.setReview(review);
         flag.setReportedBy(null);
         flag.setReason(FlagReason.TOXIC_LANGUAGE);
-        flag.setNotes("Auto-flagged by OpenAI Moderation (toxicityScore>70). Score: " + toxicityScore);
+        flag.setNotes("Auto-flagged by HuggingFace toxic-bert. Score: " + toxicityScore);
         flag.setCreatedAt(now);
         flag.setIsActive(true);
         reviewFlagRepository.save(flag);
