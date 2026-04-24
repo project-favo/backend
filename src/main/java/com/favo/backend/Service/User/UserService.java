@@ -9,8 +9,11 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -185,6 +188,20 @@ public class UserService {
     public SystemUser getCurrentUserWithRelations(SystemUser user) {
         return systemUserRepository.findByIdWithUserType(user.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    /**
+     * Kullanıcı adına göre aktif kullanıcılarda arama yapar.
+     * Büyük/küçük harf duyarsız, substring eşleşmesi. Starts-with sonuçlar önce gelir.
+     *
+     * @param query  Aranacak kullanıcı adı (veya bir kısmı)
+     * @param size   Maksimum sonuç sayısı (1–50 arası)
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<SystemUser> searchByUserName(String query, int size) {
+        if (query == null || query.isBlank()) return List.of();
+        int safeSize = Math.max(1, Math.min(size, 50));
+        return systemUserRepository.searchActiveByUserName(query.trim(), PageRequest.of(0, safeSize)).getContent();
     }
 
     /**

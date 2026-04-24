@@ -71,4 +71,15 @@ public interface SystemUserRepository
     /** Admin: ID ile kullanıcı getirir (aktif/pasif fark etmez), UserType ile */
     @Query("SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType WHERE u.id = :id")
     Optional<SystemUser> findByIdWithUserTypeForAdmin(@Param("id") Long id);
+
+    /**
+     * Kullanıcı adında arama: aktif kullanıcılar arasında case-insensitive substring eşleşmesi.
+     * UserType JOIN FETCH ile N+1 önlenir.
+     */
+    @Query(value = "SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType " +
+                   "WHERE u.isActive = true AND LOWER(u.userName) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                   "ORDER BY CASE WHEN LOWER(u.userName) LIKE LOWER(CONCAT(:q, '%')) THEN 0 ELSE 1 END, u.userName",
+           countQuery = "SELECT COUNT(u) FROM SystemUser u " +
+                        "WHERE u.isActive = true AND LOWER(u.userName) LIKE LOWER(CONCAT('%', :q, '%'))")
+    Page<SystemUser> searchActiveByUserName(@Param("q") String q, Pageable pageable);
 }
