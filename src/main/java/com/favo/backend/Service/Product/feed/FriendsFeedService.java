@@ -6,7 +6,6 @@ import com.favo.backend.Domain.interaction.ProductInteraction;
 import com.favo.backend.Domain.interaction.Repository.ProductInteractionRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.review.Review;
-import com.favo.backend.Domain.user.UserAnonymityUtil;
 import com.favo.backend.Domain.user.Repository.UserFollowRepository;
 import com.favo.backend.Service.User.ProfileImageUrlService;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +80,7 @@ public class FriendsFeedService {
                 "REVIEW",
                 review.getCreatedAt(),
                 actorId,
-                UserAnonymityUtil.publicUserName(review.getOwner()),
+                review.getOwner() != null ? review.getOwner().getUserName() : null,
                 actorPhotoUrl,
                 review.getProduct() != null ? review.getProduct().getId() : null,
                 review.getProduct() != null ? review.getProduct().getName() : null,
@@ -100,7 +99,7 @@ public class FriendsFeedService {
                 "PRODUCT_LIKE",
                 like.getCreatedAt(),
                 actorId,
-                UserAnonymityUtil.publicUserName(like.getPerformer()),
+                like.getPerformer() != null ? like.getPerformer().getUserName() : null,
                 actorPhotoUrl,
                 like.getTargetProduct() != null ? like.getTargetProduct().getId() : null,
                 like.getTargetProduct() != null ? like.getTargetProduct().getName() : null,

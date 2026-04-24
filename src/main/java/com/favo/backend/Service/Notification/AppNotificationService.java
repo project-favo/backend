@@ -10,7 +10,6 @@ import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
-import com.favo.backend.Domain.user.UserAnonymityUtil;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Service.User.ProfileImageUrlService;
 import lombok.RequiredArgsConstructor;
@@ -210,7 +209,7 @@ public class AppNotificationService {
             long aid = a.getId();
             actorDto = new NotificationActorDto(
                     aid,
-                    UserAnonymityUtil.publicUserName(a),
+                    a.getUserName(),
                     profileImageUrlService.buildProfileImageUrl(aid)
             );
         }
@@ -263,7 +262,22 @@ public class AppNotificationService {
     }
 
     public static String displayName(SystemUser u) {
-        return UserAnonymityUtil.publicDisplayName(u);
+        if (u == null) {
+            return "Kullanıcı";
+        }
+        String first = u.getName();
+        String last = u.getSurname();
+        if (first != null && !first.isBlank()) {
+            String s = first.trim();
+            if (last != null && !last.isBlank()) {
+                s = s + " " + last.trim();
+            }
+            return s;
+        }
+        if (u.getUserName() != null && !u.getUserName().isBlank()) {
+            return u.getUserName().trim();
+        }
+        return "Kullanıcı";
     }
 
     private static String truncate(String s, int max) {
