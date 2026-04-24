@@ -18,12 +18,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 
@@ -327,26 +329,54 @@ public class ReviewService {
             review.setRating(request.getRating());
         }
 
-        // Media güncelleme (mevcut media'ları sil, yenilerini ekle)
+        // Media güncelleme: retain (koru) + upload (yeni yükle) ayrımı yapılır.
         if (request.getMediaList() != null) {
-            // Mevcut media'ları soft delete yap
+            List<MediaRequestDto> mediaRequests = request.getMediaList();
+
+            // Korunacak mevcut media ID'leri topla.
+            Set<Long> retainIds = mediaRequests.stream()
+                    .filter(MediaRequestDto::isRetain)
+                    .map(MediaRequestDto::getExistingMediaIdAsLong)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            // Retain listesinde olmayan mevcut media'ları soft delete et.
             if (review.getMediaList() != null) {
-                review.getMediaList().forEach(media -> media.setIsActive(false));
+                review.getMediaList().forEach(media -> {
+                    if (!retainIds.contains(media.getId())) {
+                        media.setIsActive(false);
+                    }
+                });
             }
 
-            // Yeni media'ları ekle
-            List<Media> newMediaList = request.getMediaList().stream()
-                    .map(mediaDto -> {
+            // Yeni yüklenecek media'ları oluştur.
+            List<Media> newUploads = mediaRequests.stream()
+                    .filter(dto -> !dto.isRetain() && dto.getImageData() != null && dto.getImageData().length > 0)
+                    .map(dto -> {
                         Media media = new Media();
-                        media.setImageData(mediaDto.getImageData());
-                        media.setMimeType(mediaDto.getMimeType());
+                        media.setImageData(dto.getImageData());
+                        media.setMimeType(dto.getMimeType() != null ? dto.getMimeType() : "image/jpeg");
                         media.setReview(review);
                         media.setUploadDate(LocalDateTime.now());
                         media.setIsActive(true);
                         return media;
                     })
                     .collect(Collectors.toList());
-            review.setMediaList(newMediaList);
+
+            // Nihai liste: korunan mevcutlar + yeni yüklemeler (request sırasına göre).
+            List<Media> finalMediaList = new ArrayList<>();
+            for (MediaRequestDto dto : mediaRequests) {
+                if (dto.isRetain()) {
+                    Long retainId = dto.getExistingMediaIdAsLong();
+                    if (retainId == null) continue;
+                    review.getMediaList().stream()
+                            .filter(m -> m.getId().equals(retainId) && Boolean.TRUE.equals(m.getIsActive()))
+                            .findFirst()
+                            .ifPresent(finalMediaList::add);
+                }
+            }
+            finalMediaList.addAll(newUploads);
+            review.setMediaList(finalMediaList);
         }
 
         Review updated = reviewRepository.save(review);
