@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -160,6 +161,11 @@ public class UserService {
     public SystemUser getById(Long userId) {
         return systemUserRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Optional<SystemUser> findByIdIfPresent(Long userId) {
+        return systemUserRepository.findById(userId);
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)

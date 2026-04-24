@@ -7,6 +7,7 @@ import com.favo.backend.Domain.user.SystemUser;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -46,8 +47,9 @@ public class Review extends BaseEntity {
     )
     private SystemUser owner; // Review'ı yazan kullanıcı
 
-    // Review'ın media dosyaları (0..*)
+    // Review'ın media dosyaları (0..*); BLOB'lar ayrı yüklensin diye batch
     @OneToMany(mappedBy = "review", cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE}, fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
     private List<Media> mediaList = new ArrayList<>();
 
     // Review'a yapılan interaction'lar (0..*)
