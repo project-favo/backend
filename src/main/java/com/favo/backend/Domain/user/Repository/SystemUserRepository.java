@@ -82,6 +82,17 @@ public interface SystemUserRepository
      * UserType JOIN FETCH ile N+1 önlenir.
      */
     /**
+     * Aktif, normal (ROLE_USER) kullanıcıları alfabetik sırayla getirir.
+     * Kullanıcı dizini / preload için kullanılır.
+     */
+    @Query(value = "SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType " +
+                   "WHERE u.isActive = true AND u.userType.name = 'ROLE_USER' " +
+                   "ORDER BY u.userName",
+           countQuery = "SELECT COUNT(u) FROM SystemUser u " +
+                        "WHERE u.isActive = true AND u.userType.name = 'ROLE_USER'")
+    Page<SystemUser> findActiveNonAdminUsers(Pageable pageable);
+
+    /**
      * Kullanıcı adında arama: aktif, normal (ROLE_USER) kullanıcılar arasında
      * case-insensitive substring eşleşmesi. Admin hesapları hariç tutulur.
      * UserType JOIN FETCH ile N+1 önlenir.

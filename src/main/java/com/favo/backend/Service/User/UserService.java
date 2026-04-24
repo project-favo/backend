@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
@@ -188,6 +189,16 @@ public class UserService {
     public SystemUser getCurrentUserWithRelations(SystemUser user) {
         return systemUserRepository.findByIdWithUserType(user.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    /**
+     * Aktif ROLE_USER kullanıcılarını sayfalı getirir (kullanıcı dizini / preload).
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Page<SystemUser> findActiveNonAdminUsers(int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        return systemUserRepository.findActiveNonAdminUsers(PageRequest.of(safePage, safeSize));
     }
 
     /**
