@@ -193,6 +193,18 @@ public class AuthController {
         return ResponseEntity.ok(userMapper.toDto(userWithRelations));
     }
 
+    @GetMapping("/user/{id}")
+    public ResponseEntity<UserResponseDto> getUserById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        SystemUser target = userService.getActiveUserWithRelationsById(id);
+        return ResponseEntity.ok(userMapper.toDtoForList(target));
+    }
+
     @PutMapping("/me")
     public ResponseEntity<UserResponseDto> updateMe(
             @AuthenticationPrincipal SystemUser user,
