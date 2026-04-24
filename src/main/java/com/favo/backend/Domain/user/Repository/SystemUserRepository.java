@@ -76,10 +76,19 @@ public interface SystemUserRepository
      * Kullanıcı adında arama: aktif kullanıcılar arasında case-insensitive substring eşleşmesi.
      * UserType JOIN FETCH ile N+1 önlenir.
      */
+    /**
+     * Kullanıcı adında arama: aktif, normal (ROLE_USER) kullanıcılar arasında
+     * case-insensitive substring eşleşmesi. Admin hesapları hariç tutulur.
+     * UserType JOIN FETCH ile N+1 önlenir.
+     */
     @Query(value = "SELECT DISTINCT u FROM SystemUser u LEFT JOIN FETCH u.userType " +
-                   "WHERE u.isActive = true AND LOWER(u.userName) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                   "WHERE u.isActive = true " +
+                   "AND u.userType.name = 'ROLE_USER' " +
+                   "AND LOWER(u.userName) LIKE LOWER(CONCAT('%', :q, '%')) " +
                    "ORDER BY CASE WHEN LOWER(u.userName) LIKE LOWER(CONCAT(:q, '%')) THEN 0 ELSE 1 END, u.userName",
            countQuery = "SELECT COUNT(u) FROM SystemUser u " +
-                        "WHERE u.isActive = true AND LOWER(u.userName) LIKE LOWER(CONCAT('%', :q, '%'))")
+                        "WHERE u.isActive = true " +
+                        "AND u.userType.name = 'ROLE_USER' " +
+                        "AND LOWER(u.userName) LIKE LOWER(CONCAT('%', :q, '%'))")
     Page<SystemUser> searchActiveByUserName(@Param("q") String q, Pageable pageable);
 }
