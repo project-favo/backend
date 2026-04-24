@@ -162,6 +162,12 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public SystemUser getActiveUserWithRelationsById(Long userId) {
+        return systemUserRepository.findByIdWithUserType(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     /**
      * Mevcut kullanıcıyı UserType ile birlikte getirir.
      * Transaction içinde çalışır, böylece lazy loading sorunları olmaz.
