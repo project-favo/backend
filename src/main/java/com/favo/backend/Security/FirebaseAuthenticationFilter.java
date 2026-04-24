@@ -1,13 +1,16 @@
 package com.favo.backend.Security;
 
+import com.favo.backend.Domain.user.FirebaseUserInfo;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Firebase.AuthService;
+import com.favo.backend.Service.Firebase.FirebaseAuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,9 +26,11 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(FirebaseAuthenticationFilter.class);
 
     private final AuthService authService;
+    private final FirebaseAuthService firebaseAuthService;
 
-    public FirebaseAuthenticationFilter(AuthService authService) {
+    public FirebaseAuthenticationFilter(AuthService authService, FirebaseAuthService firebaseAuthService) {
         this.authService = authService;
+        this.firebaseAuthService = firebaseAuthService;
     }
 
     @Override
@@ -39,12 +44,57 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String path = normalizedServletPath(request);
+        String method = request.getMethod();
         String header = request.getHeader("Authorization");
         boolean hasToken = BearerTokenParser.hasBearer(header);
 
+        boolean isRegisterVerify = "POST".equalsIgnoreCase(method) && path.equals("/api/auth/register/verify");
+        if (isRegisterVerify) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        boolean isPreAccountRegister = "POST".equalsIgnoreCase(method)
+                && (path.equals("/api/auth/register") || path.equals("/api/auth/register/multipart"));
+        if (isPreAccountRegister) {
+            if (!hasToken) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                try {
+                    response.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}");
+                } catch (IOException e) {
+                    log.error("Failed to write error response", e);
+                }
+                return;
+            }
+            try {
+                String token = BearerTokenParser.extractToken(header);
+                FirebaseUserInfo info = firebaseAuthService.verify(token);
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken(info, "firebase", Collections.emptyList());
+                auth.setAuthenticated(true);
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                log.debug("Pre-account Firebase user verified: uid={}", info.getUid());
+            } catch (Exception ex) {
+                log.error("Pre-account Firebase token verification failed: {}", ex.getMessage());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                String msg = ex.getMessage() != null ? ex.getMessage().replace("\"", "\\\"") : "";
+                try {
+                    response.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"" + msg + "\"}");
+                } catch (IOException e) {
+                    log.error("Failed to write error body", e);
+                }
+                return;
+            }
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         boolean isAuthEndpoint = path.equals("/api/auth/login")
                 || path.equals("/api/auth/login/admin")
-                || path.startsWith("/api/auth/register")
                 || path.equals("/api/auth/verify-email")
                 || path.equals("/api/auth/resend-verification")
                 || path.equals("/api/auth/forgot-password");

@@ -9,20 +9,22 @@ public enum EmailErrorCode implements ErrorCode {
     /**
      * Non-2xx from Resend HTTP API or transport failure after final send attempt.
      */
-    RESEND_DELIVERY_FAILED(
+    EMAIL_DELIVERY_FAILED(
             HttpStatus.BAD_GATEWAY, 18001, "The email could not be delivered via the Resend API.",
             ErrorSeverity.WARN, true, true),
     EMAIL_ADDRESS_FORMAT_INVALID(
             HttpStatus.BAD_REQUEST, 18002, "The email address is not in a valid format.",
             ErrorSeverity.WARN, false, true),
-    /** No row for the secret or opaque id the client presented. */
-    VERIFICATION_TOKEN_NOT_FOUND(
+    /**
+     * No active pending registration found for the given email and flow.
+     */
+    EMAIL_VERIFICATION_TOKEN_NOT_FOUND(
             HttpStatus.NOT_FOUND, 18003, "The email verification token was not found.",
             ErrorSeverity.WARN, false, true),
-    VERIFICATION_TOKEN_EXPIRED(
+    EMAIL_VERIFICATION_TOKEN_EXPIRED(
             HttpStatus.GONE, 18004, "The email verification token has expired.",
             ErrorSeverity.WARN, false, true),
-    VERIFICATION_TOKEN_ALREADY_USED(
+    EMAIL_VERIFICATION_TOKEN_ALREADY_USED(
             HttpStatus.CONFLICT, 18005, "The email verification token has already been used.",
             ErrorSeverity.WARN, false, true),
     /**
@@ -48,6 +50,18 @@ public enum EmailErrorCode implements ErrorCode {
      */
     EMAIL_DOMAIN_NOT_ALLOWED(
             HttpStatus.BAD_REQUEST, 18009, "This email domain is not allowed for registration or delivery.",
+            ErrorSeverity.WARN, false, true),
+    /**
+     * Submitted one-time code does not match the stored hash.
+     */
+    EMAIL_VERIFICATION_TOKEN_INVALID(
+            HttpStatus.BAD_REQUEST, 18010, "The email verification code is invalid or incorrect.",
+            ErrorSeverity.WARN, false, true),
+    /**
+     * Too many failed verification attempts for this pending registration; no remaining attempts.
+     */
+    EMAIL_VERIFICATION_RATE_LIMIT(
+            HttpStatus.TOO_MANY_REQUESTS, 18011, "Email verification was attempted too many times.",
             ErrorSeverity.WARN, false, true);
 
     private final HttpStatus httpStatus;
