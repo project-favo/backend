@@ -1,5 +1,7 @@
 package com.favo.backend.Domain.review;
 
+import com.favo.backend.Domain.user.UserAnonymityUtil;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,7 +45,7 @@ public class ReviewMapper {
                 review.getProduct() != null ? review.getProduct().getId() : null,
                 review.getProduct() != null ? review.getProduct().getName() : null,
                 review.getOwner() != null ? review.getOwner().getId() : null,
-                review.getOwner() != null ? review.getOwner().getUserName() : null,
+                UserAnonymityUtil.publicUserName(review.getOwner()),
                 ownerProfilePhotoUrl,
                 mediaList,
                 likeCount,
