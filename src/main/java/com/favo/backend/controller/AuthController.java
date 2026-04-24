@@ -68,6 +68,19 @@ public class AuthController {
         return ResponseEntity.ok(userMapper.toDto(user));
     }
 
+    // GET /check-username?userName=xxx — public; kullanıcı adı müsait mi kontrol eder
+    @GetMapping("/check-username")
+    public ResponseEntity<Map<String, Object>> checkUsername(@RequestParam String userName) {
+        boolean available = authService.isUsernameAvailable(userName.trim());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("available", available);
+        body.put("userName", userName.trim());
+        if (available) {
+            return ResponseEntity.ok(body);
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     // POST /register — JSON RegisterRequestDto
     @PostMapping("/register")
     public ResponseEntity<UserResponseDto> register(

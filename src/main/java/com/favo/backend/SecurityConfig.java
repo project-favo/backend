@@ -48,7 +48,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
                         .requestMatchers("/api/auth/login", "/api/auth/login/admin", "/api/auth/register", "/api/auth/register/multipart",
-                                "/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password", "/api/health").permitAll()
+                                "/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password",
+                                "/api/auth/check-username", "/api/health").permitAll()
                         // Geçici katalog seed — token yok; app.catalog-import.enabled=true iken anlamlı
                         .requestMatchers(HttpMethod.POST, "/api/internal/catalog-import-from-json").permitAll()
                         // WebSocket handshake endpoint'i - auth, WebSocketAuthInterceptor içinde yapılır
