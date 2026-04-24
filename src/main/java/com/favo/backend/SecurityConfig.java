@@ -46,9 +46,12 @@ public class SecurityConfig {
                 // Endpoint yetkilendirme
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Login ve Register token gerektirmez (token'ı almak için kullanılıyor)
-                        .requestMatchers("/api/auth/login", "/api/auth/login/admin", "/api/auth/register", "/api/auth/register/multipart",
+                        // Login; eski verify-email/resend; şifre sıfırlama; kayıt OTP doğrulama (Bearer yok)
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register/verify").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/login/admin",
                                 "/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password", "/api/health").permitAll()
+                        // Yeni kayıt: yalnızca Firebase ID token (DB kullanıcısı yok) — filtrede doğrulanır, authenticated
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/multipart").authenticated()
                         // Geçici katalog seed — token yok; app.catalog-import.enabled=true iken anlamlı
                         .requestMatchers(HttpMethod.POST, "/api/internal/catalog-import-from-json").permitAll()
                         // WebSocket handshake endpoint'i - auth, WebSocketAuthInterceptor içinde yapılır

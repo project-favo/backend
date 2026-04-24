@@ -9,7 +9,7 @@ public enum SystemErrorCode implements ErrorCode {
     DATABASE_CONNECTION_FAILED(
             HttpStatus.SERVICE_UNAVAILABLE, 99001, "The application could not connect to the database.",
             ErrorSeverity.FATAL, true, false),
-    DATABASE_TRANSACTION_ROLLED_BACK(
+    SYSTEM_DB_TRANSACTION_ROLLBACK(
             HttpStatus.INTERNAL_SERVER_ERROR, 99002, "The database transaction was rolled back.",
             ErrorSeverity.ERROR, true, false),
     UNEXPECTED_INTERNAL_ERROR(

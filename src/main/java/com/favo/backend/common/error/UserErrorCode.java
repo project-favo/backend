@@ -9,7 +9,7 @@ public enum UserErrorCode implements ErrorCode {
     /**
      * Proposed display name is already used by another account (compared in a case-insensitive way for duplicates).
      */
-    USERNAME_ALREADY_TAKEN(
+    USER_USERNAME_TAKEN(
             HttpStatus.CONFLICT, 11001, "That username is already taken.",
             ErrorSeverity.WARN, false, true),
     USERNAME_FORMAT_INVALID(
