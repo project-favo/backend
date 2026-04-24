@@ -20,35 +20,33 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByIsActiveTrue();
 
     /**
-     * ID'ye göre review'ı tüm ilişkileriyle birlikte getir (N+1 query problemini önlemek için)
-     * Not: interactions fetch edilmiyor (MultipleBagFetchException'ı önlemek için)
+     * ID'ye göre review'ı product ve owner ile getirir.
+     * <p><b>mediaList JOIN FETCH yok</b> — her {@code media.image_data} (LONGBLOB) aynı sorguda çekilse
+     * bellek / paket sınırı ve 500 riski yaratıyor; medya ayrı lazy (veya BLOB=LAZY) yüklenir.
+     * Interactions fetch edilmez.
      */
     @Query("SELECT DISTINCT r FROM Review r " +
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
-           "LEFT JOIN FETCH r.mediaList m " +
            "WHERE r.id = :id AND r.isActive = true AND p.isActive = true AND o.isActive = true")
     Optional<Review> findByIdWithRelations(@Param("id") Long id);
 
     /**
-     * Product'a ait review'ları tüm ilişkileriyle birlikte getir
-     * Not: interactions fetch edilmiyor (MultipleBagFetchException'ı önlemek için)
+     * Product'a ait aktif review'lar — product, owner yüklenir; medya <b>fetch join edilmez</b> (BLOB boyutu / cartesian).
      */
     @Query("SELECT DISTINCT r FROM Review r " +
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
-           "LEFT JOIN FETCH r.mediaList m " +
            "WHERE r.product.id = :productId AND r.isActive = true AND p.isActive = true AND o.isActive = true")
     List<Review> findByProductIdWithRelations(@Param("productId") Long productId);
 
     /**
-     * Kullanıcıya ait review'ları tüm ilişkileriyle birlikte getir (en yeni önce).
-     * Not: interactions fetch edilmiyor (MultipleBagFetchException'ı önlemek için)
+     * Kullanıcıya ait review'lar (en yeni önce). Medya fetch join yok; gerekçe
+     * {@link #findByProductIdWithRelations(Long)} ile aynı.
      */
     @Query("SELECT DISTINCT r FROM Review r " +
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
-           "LEFT JOIN FETCH r.mediaList m " +
            "WHERE r.owner.id = :ownerId AND r.isActive = true AND p.isActive = true AND o.isActive = true ORDER BY r.createdAt DESC")
     List<Review> findByOwnerIdWithRelations(@Param("ownerId") Long ownerId);
 

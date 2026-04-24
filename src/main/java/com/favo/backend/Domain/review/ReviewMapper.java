@@ -20,18 +20,20 @@ public class ReviewMapper {
         Long likeCount = review.getInteractions() != null
                 ? review.getInteractions().stream()
                     .filter(interaction -> Boolean.TRUE.equals(interaction.getIsActive()))
-                    .filter(interaction -> "LIKE".equalsIgnoreCase(interaction.getType()))
+                    .filter(interaction -> "LIKE".equalsIgnoreCase(safeType(interaction.getType())))
                     .count()
                 : 0L;
 
-        // Mevcut kullanıcı bu review'ı beğenmiş mi?
-        Boolean isLikedByCurrentUser = currentUserId != null && review.getInteractions() != null
-                ? review.getInteractions().stream()
+        // Mevcut kullanıcı bu review'ı beğenmiş mi? (bozuk veri: performer null olabilir)
+        boolean isLiked = false;
+        if (currentUserId != null && review.getInteractions() != null) {
+            isLiked = review.getInteractions().stream()
                     .filter(interaction -> Boolean.TRUE.equals(interaction.getIsActive()))
-                    .filter(interaction -> "LIKE".equalsIgnoreCase(interaction.getType()))
+                    .filter(interaction -> "LIKE".equalsIgnoreCase(safeType(interaction.getType())))
                     .anyMatch(interaction -> interaction.getPerformer() != null
-                            && interaction.getPerformer().getId().equals(currentUserId))
-                : false;
+                            && currentUserId.equals(interaction.getPerformer().getId()));
+        }
+        Boolean isLikedByCurrentUser = isLiked;
 
         return new ReviewResponseDto(
                 review.getId(),
@@ -55,6 +57,10 @@ public class ReviewMapper {
 
     public static ReviewResponseDto toDto(Review review) {
         return toDto(review, null, null);
+    }
+
+    private static String safeType(String type) {
+        return type == null ? "" : type;
     }
 }
 
