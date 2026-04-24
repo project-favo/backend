@@ -25,7 +25,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -258,6 +260,29 @@ public class AuthController {
             }
         }
         return binaryData;
+    }
+
+    /**
+     * Kullanıcı adına göre aktif kullanıcılarda arama. Giriş yapılmış olması gerekir.
+     * GET /api/auth/users/search?q=ali&size=20
+     */
+    @GetMapping("/users/search")
+    public ResponseEntity<List<UserResponseDto>> searchUsers(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<UserResponseDto> results = userService.searchByUserName(q, size)
+                .stream()
+                .map(userMapper::toDtoForList)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(results);
     }
 
     @DeleteMapping("/me")
