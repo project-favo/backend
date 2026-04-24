@@ -47,12 +47,6 @@ public enum AuthErrorCode implements ErrorCode {
             ErrorSeverity.WARN, false, true),
     AUTH_PERMISSION_DENIED(
             HttpStatus.FORBIDDEN, 10010, "The authenticated user lacks permission to perform this operation.",
-            ErrorSeverity.WARN, false, true),
-    /**
-     * A row in {@code system_user} already exists for this Firebase account; registration is not available.
-     */
-    AUTH_ACCOUNT_ALREADY_REGISTERED(
-            HttpStatus.CONFLICT, 10011, "An account is already registered for this Firebase user.",
             ErrorSeverity.WARN, false, true);
 
     private final HttpStatus httpStatus;
