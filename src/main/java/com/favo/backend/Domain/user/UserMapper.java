@@ -46,13 +46,16 @@ public class UserMapper {
         boolean emailVerified = !Boolean.FALSE.equals(user.getEmailVerified());
         boolean profileAnonymous = Boolean.TRUE.equals(user.getProfileAnonymous());
         String profileImageUrl = profileImageUrlService.buildProfileImageUrl(user.getId());
+        String userName = UserAnonymityUtil.publicUserName(user);
+        String name = profileAnonymous ? UserAnonymityUtil.maskedInitials(user) : user.getName();
+        String surname = profileAnonymous ? null : user.getSurname();
 
         return new UserResponseDto(
                 user.getId(),
                 user.getEmail(),
-                user.getUserName(),
-                user.getName(),
-                user.getSurname(),
+                userName,
+                name,
+                surname,
                 user.getBirthdate(),
                 user.getUserType().getName(),
                 Boolean.TRUE.equals(user.getIsActive()),

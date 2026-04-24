@@ -5,6 +5,7 @@ import com.favo.backend.Domain.message.Repository.ConversationRepository;
 import com.favo.backend.Domain.message.Repository.MessageRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
+import com.favo.backend.Domain.user.UserAnonymityUtil;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Service.Notification.PushNotificationService;
 import com.favo.backend.Service.User.ProfileImageUrlService;
@@ -105,7 +106,7 @@ public class ConversationService {
         Long recipientUserId = resolveRecipientUserId(conversation, currentUserId);
         pushNotificationService.notifyDirectMessage(
                 recipientUserId,
-                sender.getUserName() + " sana mesaj atti",
+                UserAnonymityUtil.publicUserName(sender) + " sana mesaj atti",
                 dto.getContent()
         );
 
@@ -183,7 +184,7 @@ public class ConversationService {
                 message.getId(),
                 message.getConversation().getId(),
                 sid,
-                message.getSender().getUserName(),
+                UserAnonymityUtil.publicUserName(message.getSender()),
                 senderPhotoUrl,
                 message.getContent(),
                 message.getCreatedAt(),
@@ -206,7 +207,7 @@ public class ConversationService {
 
         UserSummaryDto otherSummary = new UserSummaryDto(
                 other.getId(),
-                other.getUserName(),
+                UserAnonymityUtil.publicUserName(other),
                 profileImageUrlService.buildProfileImageUrl(other.getId())
         );
 

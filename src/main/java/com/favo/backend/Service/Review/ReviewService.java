@@ -7,9 +7,11 @@ import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.review.Repository.TopReviewerProjection;
 import com.favo.backend.Domain.user.Repository.FolloweeFollowerCountProjection;
+import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.Repository.UserFollowRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
+import com.favo.backend.Domain.user.UserAnonymityUtil;
 import com.favo.backend.Service.Moderation.ToxicityService;
 import com.favo.backend.Service.Notification.AppNotificationService;
 import com.favo.backend.Service.User.ProfileImageUrlService;
@@ -37,6 +39,7 @@ public class ReviewService {
     private final ToxicityService toxicityService;
     private final ReviewFlagRepository reviewFlagRepository;
     private final UserFollowRepository userFollowRepository;
+    private final SystemUserRepository systemUserRepository;
     private final ProfileImageUrlService profileImageUrlService;
     private final AppNotificationService appNotificationService;
 
@@ -290,7 +293,9 @@ public class ReviewService {
         return rows.stream()
                 .map(row -> new TopReviewerResponseDto(
                         row.getUserId(),
-                        row.getUserName(),
+                        systemUserRepository.findById(row.getUserId())
+                                .map(UserAnonymityUtil::publicUserName)
+                                .orElse(row.getUserName()),
                         profileImageUrlService.buildProfileImageUrl(row.getUserId()),
                         row.getReviewCount()
                 ))
