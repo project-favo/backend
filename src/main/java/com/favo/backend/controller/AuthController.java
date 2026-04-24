@@ -14,6 +14,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.data.domain.Page;
+
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -282,6 +284,33 @@ public class AuthController {
             }
         }
         return binaryData;
+    }
+
+    /**
+     * Aktif kullanıcı dizini — mobil preload için.
+     * GET /api/auth/users?page=0&size=100
+     */
+    @GetMapping("/users")
+    public ResponseEntity<Map<String, Object>> getUserDirectory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Page<SystemUser> resultPage = userService.findActiveNonAdminUsers(page, size);
+        List<UserResponseDto> content = resultPage.getContent()
+                .stream()
+                .map(userMapper::toDtoForList)
+                .collect(Collectors.toList());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("content", content);
+        body.put("totalElements", resultPage.getTotalElements());
+        body.put("totalPages", resultPage.getTotalPages());
+        body.put("number", resultPage.getNumber());
+        body.put("last", resultPage.isLast());
+        return ResponseEntity.ok(body);
     }
 
     /**
