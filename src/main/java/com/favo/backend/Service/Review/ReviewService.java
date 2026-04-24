@@ -6,6 +6,8 @@ import com.favo.backend.Domain.review.*;
 import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.Domain.review.Repository.TopReviewerProjection;
+import com.favo.backend.Domain.user.Repository.FolloweeFollowerCountProjection;
+import com.favo.backend.Domain.user.Repository.UserFollowRepository;
 import com.favo.backend.Domain.user.GeneralUser;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Moderation.ToxicityService;
@@ -16,7 +18,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 
@@ -29,6 +36,7 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final ToxicityService toxicityService;
     private final ReviewFlagRepository reviewFlagRepository;
+    private final UserFollowRepository userFollowRepository;
     private final ProfileImageUrlService profileImageUrlService;
     private final AppNotificationService appNotificationService;
 
@@ -154,6 +162,87 @@ public class ReviewService {
     public List<ReviewResponseDto> getReviewsByProductId(Long productId, Long currentUserId) {
         List<Review> reviews = reviewRepository.findByProductIdWithRelations(productId);
         return toResponseDtos(reviews, currentUserId);
+    }
+
+    public List<ReviewResponseDto> getReviewsByProductId(
+            Long productId,
+            Long currentUserId,
+            Boolean hasMedia,
+            Boolean isCollaborative,
+            String sort
+    ) {
+        List<Review> reviews = reviewRepository.findByProductIdWithRelations(productId);
+
+        if (isCollaborative != null) {
+            reviews = reviews.stream()
+                    .filter(r -> Objects.equals(r.getIsCollaborative(), isCollaborative))
+                    .collect(Collectors.toList());
+        }
+
+        if (hasMedia != null) {
+            reviews = reviews.stream()
+                    .filter(r -> {
+                        boolean reviewHasMedia = r.getMediaList() != null && r.getMediaList().stream()
+                                .anyMatch(m -> Boolean.TRUE.equals(m.getIsActive()));
+                        return hasMedia.equals(reviewHasMedia);
+                    })
+                    .collect(Collectors.toList());
+        }
+
+        List<ReviewResponseDto> dtos = toResponseDtos(reviews, currentUserId);
+        SortOption sortOption = SortOption.from(sort);
+        if (sortOption == SortOption.NEWEST) {
+            dtos.sort(Comparator.comparing(ReviewResponseDto::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+            return dtos;
+        }
+        if (sortOption == SortOption.MOST_LIKED) {
+            dtos.sort(Comparator
+                    .comparing(ReviewResponseDto::getLikeCount, Comparator.nullsLast(Comparator.naturalOrder())).reversed()
+                    .thenComparing(ReviewResponseDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+            return dtos;
+        }
+
+        Map<Long, Long> followerCountByUserId = followerCountByUserId(dtos);
+        dtos.sort(Comparator
+                .comparing((ReviewResponseDto dto) -> followerCountByUserId.getOrDefault(dto.getOwnerId(), 0L))
+                .reversed()
+                .thenComparing(ReviewResponseDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        return dtos;
+    }
+
+    private Map<Long, Long> followerCountByUserId(List<ReviewResponseDto> dtos) {
+        List<Long> ownerIds = dtos.stream()
+                .map(ReviewResponseDto::getOwnerId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (ownerIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<FolloweeFollowerCountProjection> rows = userFollowRepository.countActiveFollowersByFolloweeIds(ownerIds);
+        Map<Long, Long> counts = new HashMap<>();
+        rows.forEach(row -> counts.put(row.getFolloweeId(), row.getFollowerCount()));
+        return counts;
+    }
+
+    private enum SortOption {
+        NEWEST,
+        MOST_LIKED,
+        TOP_FOLLOWER_AUTHOR;
+
+        static SortOption from(String rawSort) {
+            if (rawSort == null || rawSort.isBlank()) {
+                return NEWEST;
+            }
+            String normalized = rawSort.toLowerCase(Locale.ROOT);
+            return switch (normalized) {
+                case "most_liked" -> MOST_LIKED;
+                case "top_follower_author" -> TOP_FOLLOWER_AUTHOR;
+                case "newest" -> NEWEST;
+                default -> NEWEST;
+            };
+        }
     }
 
     /**

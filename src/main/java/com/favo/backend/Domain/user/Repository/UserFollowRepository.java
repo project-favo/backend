@@ -37,5 +37,12 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
     @Query("SELECT uf.followee.id FROM UserFollow uf WHERE uf.follower.id = :followerId AND uf.isActive = true")
     List<Long> findActiveFolloweeIds(@Param("followerId") Long followerId);
 
+    @Query("SELECT uf.followee.id AS followeeId, COUNT(uf) AS followerCount " +
+           "FROM UserFollow uf " +
+           "WHERE uf.followee.id IN :followeeIds AND uf.isActive = true " +
+           "AND uf.follower.isActive = true AND uf.followee.isActive = true " +
+           "GROUP BY uf.followee.id")
+    List<FolloweeFollowerCountProjection> countActiveFollowersByFolloweeIds(@Param("followeeIds") List<Long> followeeIds);
+
     boolean existsByFollower_IdAndFollowee_IdAndIsActiveTrue(Long followerId, Long followeeId);
 }

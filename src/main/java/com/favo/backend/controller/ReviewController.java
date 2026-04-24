@@ -126,10 +126,19 @@ public class ReviewController {
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<ReviewResponseDto>> getReviewsByProduct(
             @PathVariable Long productId,
+            @RequestParam(required = false) Boolean hasMedia,
+            @RequestParam(required = false) Boolean isCollaborative,
+            @RequestParam(defaultValue = "newest") String sort,
             @AuthenticationPrincipal SystemUser user
     ) {
         Long currentUserId = user != null ? user.getId() : null;
-        List<ReviewResponseDto> reviews = reviewService.getReviewsByProductId(productId, currentUserId);
+        List<ReviewResponseDto> reviews = reviewService.getReviewsByProductId(
+                productId,
+                currentUserId,
+                hasMedia,
+                isCollaborative,
+                sort
+        );
         return ResponseEntity.ok(reviews);
     }
 
