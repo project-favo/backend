@@ -201,6 +201,18 @@ public class ReviewService {
                     .thenComparing(ReviewResponseDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
             return dtos;
         }
+        if (sortOption == SortOption.HIGHEST_RATING) {
+            dtos.sort(Comparator
+                    .comparing(ReviewResponseDto::getRating, Comparator.nullsLast(Comparator.naturalOrder())).reversed()
+                    .thenComparing(ReviewResponseDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+            return dtos;
+        }
+        if (sortOption == SortOption.LOWEST_RATING) {
+            dtos.sort(Comparator
+                    .comparing(ReviewResponseDto::getRating, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(ReviewResponseDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+            return dtos;
+        }
 
         Map<Long, Long> followerCountByUserId = followerCountByUserId(dtos);
         dtos.sort(Comparator
@@ -229,6 +241,8 @@ public class ReviewService {
     private enum SortOption {
         NEWEST,
         MOST_LIKED,
+        HIGHEST_RATING,
+        LOWEST_RATING,
         TOP_FOLLOWER_AUTHOR;
 
         static SortOption from(String rawSort) {
@@ -238,6 +252,8 @@ public class ReviewService {
             String normalized = rawSort.toLowerCase(Locale.ROOT);
             return switch (normalized) {
                 case "most_liked" -> MOST_LIKED;
+                case "highest_rating" -> HIGHEST_RATING;
+                case "lowest_rating" -> LOWEST_RATING;
                 case "top_follower_author" -> TOP_FOLLOWER_AUTHOR;
                 case "newest" -> NEWEST;
                 default -> NEWEST;
