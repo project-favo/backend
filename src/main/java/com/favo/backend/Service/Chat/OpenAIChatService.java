@@ -28,7 +28,8 @@ public class OpenAIChatService {
      */
     public static final String BASE_SYSTEM_PROMPT =
             "You are the in-app support assistant for Favo. Favo is a mobile app where users discover products, "
-                    + "read and write reviews, follow other users, and like products.\n\n"
+                    + "read and write reviews, follow other users, and like products. "
+                    + "The app does not display purchase prices or checkout; focus on discovery and community reviews—never invent or guess prices.\n\n"
                     + "How Favo works (use this to give accurate help):\n"
                     + "- Home: Top 10 products carousel, category chips (All + categories), product grid. Tap a product to open its detail.\n"
                     + "- Bottom navigation: Home, Search, Add, Favorites, Profile.\n"
@@ -39,6 +40,18 @@ public class OpenAIChatService {
                     + "Keep answers short and clear. Reply in the same language as the user's latest substantive message in this thread.\n"
                     + "Use the personalized context below when it helps (preferences, recent activity), but do not reveal private data of other users. "
                     + "Prioritize the ongoing conversation topic over wishlist or old likes unless the user explicitly asks for suggestions from their favorites or likes.";
+
+    /**
+     * Ürün detayından açılan sohbet: aşağıya ürün özeti ve yorum alıntıları eklenir.
+     */
+    public static final String PRODUCT_CHAT_SYSTEM_PREFIX =
+            "You are Favo's assistant for questions about ONE specific product the user opened from the app. "
+                    + "Answer only using the product facts and review excerpts in the context below. "
+                    + "If something is not in the context, say you do not have that information. "
+                    + "Favo does not show prices or selling—if the user asks for price, shipping, or where to buy, explain that Favo is for discovery and reviews, not purchases. "
+                    + "Treat review excerpts as community opinions, not guaranteed facts. Do not name or identify individual reviewers. "
+                    + "Keep replies concise unless the user asks for more detail. "
+                    + "Reply in the same language as the user's latest message in this thread.\n\n";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();

@@ -16,6 +16,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByTagIdAndIsActiveTrue(Long tagId);
     Optional<Product> findByIdAndIsActiveTrue(Long id);
 
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tag t LEFT JOIN FETCH t.parent WHERE p.id = :id AND p.isActive = true")
+    Optional<Product> findByIdAndIsActiveTrueWithTag(@Param("id") Long id);
+
     /**
      * Ana sayfa: Sayfa için sadece ID listesi (DISTINCT+FETCH sayfa kaymasını önlemek için).
      * Sıra sabit: createdAt DESC, id ASC.

@@ -10,6 +10,8 @@ import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
 import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Email.EmailVerificationService;
+import com.favo.backend.common.error.FavoException;
+import com.favo.backend.common.error.UserErrorCode;
 import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +95,7 @@ public class AuthService {
         }
 
         if (systemUserRepository.existsByUserNameAndIsActiveTrue(userName)) {
-            throw new RuntimeException("USERNAME_ALREADY_TAKEN");
+            throw new FavoException(UserErrorCode.USERNAME_ALREADY_TAKEN);
         }
 
         SystemUser user = registerNewUser(info, userName, name, surname, birthdate);
@@ -133,6 +135,14 @@ public class AuthService {
         user.setProfileAnonymous(false);
 
         return systemUserRepository.save(user);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isUsernameAvailable(@NonNull String userName) {
+        if (userName.isBlank()) {
+            throw new FavoException(UserErrorCode.USERNAME_FORMAT_INVALID);
+        }
+        return !systemUserRepository.existsByUserNameAndIsActiveTrue(userName);
     }
 
     // For verify-email / resend: no EMAIL_NOT_VERIFIED check

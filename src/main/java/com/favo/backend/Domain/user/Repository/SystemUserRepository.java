@@ -49,11 +49,6 @@ public interface SystemUserRepository
     boolean existsByUserNameAndIsActiveTrue(String userName);
 
     /**
-     * Kullanıcı adı, büyük/küçük harf ayrımı olmadan aktif hesaplarda aranır.
-     */
-    boolean existsByUserNameIgnoreCaseAndIsActiveTrue(String userName);
-
-    /**
      * ID'ye göre kullanıcıyı UserType ile birlikte getirir (N+1 query problemini önlemek için)
      * LEFT JOIN FETCH ile UserType tek query'de çekilir
      * 

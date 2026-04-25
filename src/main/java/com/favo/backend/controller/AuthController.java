@@ -1,21 +1,12 @@
 package com.favo.backend.controller;
 
-import com.favo.backend.Domain.user.PasswordResetRequestDto;
-import com.favo.backend.Domain.user.SystemUser;
-import com.favo.backend.Domain.user.UserMapper;
-import com.favo.backend.Domain.user.UserResponseDto;
-import com.favo.backend.Domain.user.UserUpdateRequestDto;
-import com.favo.backend.Domain.user.VerifyEmailRequestDto;
+import com.favo.backend.Domain.user.*;
 import com.favo.backend.Security.BearerTokenParser;
 import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Email.EmailVerificationService;
 import com.favo.backend.Service.Email.PasswordResetService;
 import com.favo.backend.Service.Firebase.AuthService;
 import com.favo.backend.Service.User.UserService;
-import com.favo.backend.auth.RegisterEmailVerifyRequestDto;
-import com.favo.backend.auth.RegisterRequestDto;
-import com.favo.backend.auth.RegistrationService;
-import com.favo.backend.Domain.user.FirebaseUserInfo;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,22 +31,19 @@ public class AuthController {
     private final UserMapper userMapper;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
-    private final RegistrationService registrationService;
 
     public AuthController(
             AuthService authService,
             UserService userService,
             UserMapper userMapper,
             EmailVerificationService emailVerificationService,
-            PasswordResetService passwordResetService,
-            RegistrationService registrationService
+            PasswordResetService passwordResetService
     ) {
         this.authService = authService;
         this.userService = userService;
         this.userMapper = userMapper;
         this.emailVerificationService = emailVerificationService;
         this.passwordResetService = passwordResetService;
-        this.registrationService = registrationService;
     }
 
     // POST /login — Bearer Firebase token; unverified email -> EMAIL_NOT_VERIFIED
@@ -84,30 +72,39 @@ public class AuthController {
         return ResponseEntity.ok(userMapper.toDto(user));
     }
 
-    /**
-     * Yeni kayıt: Firebase ID token (Authorization) + kullanıcı adı / görünen ad. Kullanıcı satırı yalnızca
-     * {@code POST /api/auth/register/verify} sonrası oluşur.
-     */
-    @PostMapping("/register")
-    public ResponseEntity<Map<String, String>> register(
-            @AuthenticationPrincipal FirebaseUserInfo firebaseUser,
-            @Valid @RequestBody RegisterRequestDto request
-    ) {
-        registrationService.initiateRegistration(firebaseUser, request);
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(Map.of("message", "Verification email sent."));
+    // GET /check-username?userName=xxx — public; kullanıcı adı müsait mi kontrol eder
+    @GetMapping("/check-username")
+    public ResponseEntity<Map<String, Object>> checkUsername(@RequestParam String userName) {
+        boolean available = authService.isUsernameAvailable(userName.trim());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("available", available);
+        body.put("userName", userName.trim());
+        if (available) {
+            return ResponseEntity.ok(body);
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
-    /**
-     * E-posta OTP onayı: Bearer gerekmez; e-posta + 6 haneli kod.
-     */
-    @PostMapping("/register/verify")
-    public ResponseEntity<com.favo.backend.auth.UserResponseDto> registerVerify(
-            @Valid @RequestBody RegisterEmailVerifyRequestDto body
+    // POST /register — JSON RegisterRequestDto
+    @PostMapping("/register")
+    public ResponseEntity<UserResponseDto> register(
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody RegisterRequestDto request
     ) {
-        long pendingId = registrationService.validateOtpForRegistration(body.getEmail(), body.getCode());
-        com.favo.backend.auth.UserResponseDto user = registrationService.finalizeRegistrationAfterOtp(pendingId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(user);
+        String token = BearerTokenParser.extractToken(authorization);
+
+        byte[] photoData = convertToByteArray(request.getProfilePhotoBase64(), request.getProfilePhotoData());
+
+        SystemUser user = authService.register(
+                token,
+                request.getUserName(),
+                request.getName(),
+                request.getSurname(),
+                request.getBirthdate(),
+                photoData,
+                request.getProfilePhotoMimeType()
+        );
+        return ResponseEntity.ok(userMapper.toDto(user));
     }
 
     // POST /verify-email — Bearer + five-digit code JSON
@@ -171,13 +168,38 @@ public class AuthController {
     }
 
     @PostMapping(value = "/register/multipart", consumes = "multipart/form-data")
-    public ResponseEntity<Map<String, String>> registerMultipart(
-            @AuthenticationPrincipal FirebaseUserInfo firebaseUser,
-            @Valid @ModelAttribute RegisterRequestDto request
+    public ResponseEntity<UserResponseDto> registerMultipart(
+            @RequestHeader("Authorization") String authorization,
+            @RequestParam String userName,
+            @RequestParam String name,
+            @RequestParam String surname,
+            @RequestParam String birthdate,
+            @RequestParam(required = false) MultipartFile profilePhoto
     ) {
-        registrationService.initiateRegistration(firebaseUser, request);
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(Map.of("message", "Verification email sent."));
+        String token = BearerTokenParser.extractToken(authorization);
+
+        byte[] photoData = null;
+        String photoMimeType = null;
+
+        if (profilePhoto != null && !profilePhoto.isEmpty()) {
+            try {
+                photoData = profilePhoto.getBytes();
+                photoMimeType = profilePhoto.getContentType();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to read profile photo: " + e.getMessage());
+            }
+        }
+
+        SystemUser user = authService.register(
+                token,
+                userName,
+                name,
+                surname,
+                java.time.LocalDate.parse(birthdate),
+                photoData,
+                photoMimeType
+        );
+        return ResponseEntity.ok(userMapper.toDto(user));
     }
 
     @GetMapping("/me")

@@ -32,16 +32,15 @@ public class ChatController {
     }
 
     /**
-     * Product-specific assistant: stateless, injects product details + community reviews into the system prompt.
-     * Requires Bearer token (authenticated user).
+     * Ürün detayından açılan sohbet: aynı kullanıcı + ürün için ayrı geçmiş; yanıtta ürün kartı listesi yok.
      */
     @PostMapping("/product/{productId}")
-    public ResponseEntity<ChatResponse> chatProduct(
+    public ResponseEntity<ChatResponse> chatAboutProduct(
             @AuthenticationPrincipal SystemUser user,
-            @PathVariable Long productId,
+            @PathVariable long productId,
             @Valid @RequestBody ChatRequest request
     ) {
-        ChatResponse response = productChatService.chat(productId, request.getMessage());
+        ChatResponse response = productChatService.chat(user, productId, request.getMessage());
         return ResponseEntity.ok(response);
     }
 }

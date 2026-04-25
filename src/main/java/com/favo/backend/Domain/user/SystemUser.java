@@ -48,12 +48,6 @@ public abstract class SystemUser extends BaseEntity {
     private Boolean emailVerified;
 
     /**
-     * Set when e-posta doğrulaması kalıcı olarak onaylandı (yeni akış: OTP sonrası).
-     */
-    @Column(name = "email_verified_at")
-    private LocalDateTime emailVerifiedAt;
-
-    /**
      * true = kullanıcı profilini herkese anonim göstermek istiyor (ayarlardan).
      * null = eski kayıtlar, anonim değil sayılır.
      */
