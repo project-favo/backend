@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -59,25 +60,47 @@ public class HuggingFaceService {
             return new ToxicityResultDto(null, false);
         }
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiToken);
+        // Model uyku modunda olabilir (HF free tier); wait_for_model + 2 retry
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setBearerAuth(apiToken);
 
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(Map.of("inputs", text), headers);
-            ResponseEntity<?> response = restTemplate.postForEntity(apiUrl, entity, List.class);
-            Object responseBody = response.getBody();
-            if (!(responseBody instanceof List<?> rootList)) {
-                return new ToxicityResultDto(null, false);
+                Map<String, Object> body = new HashMap<>();
+                body.put("inputs", text);
+                body.put("options", Map.of("wait_for_model", true));
+
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+                ResponseEntity<?> response = restTemplate.postForEntity(apiUrl, entity, List.class);
+
+                if (response.getStatusCode().is2xxSuccessful()) {
+                    Object responseBody = response.getBody();
+                    if (!(responseBody instanceof List<?> rootList)) {
+                        log.warn("HuggingFace unexpected response shape (attempt {})", attempt);
+                        continue;
+                    }
+                    Double toxicScore = extractCombinedToxicityScore(rootList);
+                    boolean isToxic = toxicScore != null && toxicScore >= 0.70;
+                    log.info("HuggingFace toxicity score={} isToxic={} (attempt {})", toxicScore, isToxic, attempt);
+                    return new ToxicityResultDto(toxicScore, isToxic);
+                }
+
+                log.warn("HuggingFace HTTP {} on attempt {}", response.getStatusCode(), attempt);
+                if (attempt < maxAttempts) Thread.sleep(2000L * attempt);
+
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception ex) {
+                log.warn("HuggingFace toxicity call failed (attempt {}): {}", attempt, ex.getMessage());
+                if (attempt < maxAttempts) {
+                    try { Thread.sleep(2000L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                }
             }
-
-            Double toxicScore = extractCombinedToxicityScore(rootList);
-            boolean isToxic = toxicScore != null && toxicScore >= 0.70;
-            return new ToxicityResultDto(toxicScore, isToxic);
-        } catch (Exception ex) {
-            log.warn("HuggingFace toxicity call failed: {}", ex.getMessage());
-            return new ToxicityResultDto(null, false);
         }
+        return new ToxicityResultDto(null, false);
     }
 
     private String resolveHuggingFaceToken() {

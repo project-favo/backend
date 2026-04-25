@@ -12,37 +12,35 @@ public final class ProfanityFilter {
 
     private ProfanityFilter() {}
 
-    /** Tek kelime veya kök olarak geçmesi yeterli olan terimler (word-boundary ile). */
+    /** Tek kelime veya kök olarak geçmesi yeterli olan terimler — normalize edilmiş (ASCII) formda. */
     private static final Set<String> BLOCKED_WORDS = Set.of(
-            // ── Türkçe ──────────────────────────────────────────────────────────
-            "sik", "sikerim", "sikeyim", "sikiyim", "sikiyor", "sikik", "sikiş", "sikişmek",
-            "orospu", "orospuçocuğu", "fahişe",
-            "amk", "amına", "amcık", "amını",
-            "göt", "götü", "göte",
+            // ── Türkçe (normalize: ş→s, ğ→g, ü→u, ö→o, ç→c, ı→i) ───────────────
+            "sik", "sikerim", "sikeyim", "sikiyim", "sikiyor", "sikik", "sikis", "sikismek",
+            "orospu", "orospucocugu", "fahise",
+            "amk", "amina", "amcik", "amini",
+            "got", "gotu", "gote", "gotveren",
             "yarrak", "yarak",
-            "pezevenk", "piç", "piçlik",
+            "pezevenk", "pic", "piclik",
             "ibne", "ibnelik",
-            "oç", "oğlum",   // "oç" hakaret bağlamı
+            "oc",
             "bok", "boktan",
-            "meme", "memeler",   // hakaret bağlamı
             "kahpe", "kahpelik",
-            "salak", "salağı",   // ılımlı ama yaygın hakaret
-            "aptal",             // ılımlı ama hakaret
-            "gerizekalı", "gerizekalının",
+            "salak", "salagi",
+            "aptal",
+            "gerizekalinin",
             "beyinsiz",
             "haysiyetsiz",
-            "aşağılık",
-            "şerefsiz",
-            "alçak",
-            "puşt",
-            "götveren",
-            "kötü",              // bağlamdan bağımsız olarak zayıf; gerekirse kaldırın
+            "asagilik",
+            "serefsiz",
+            "alcak",
+            "pust",
+            "kotu",
             // ── İngilizce ───────────────────────────────────────────────────────
-            "fuck", "fucker", "fucking", "fucked", "fucks",
+            "fuck", "fucker", "fuckers", "fucking", "fucked", "fucks",
             "shit", "shitty",
-            "asshole", "ass",
+            "asshole", "assholes", "ass",
             "bitch", "bitches",
-            "cunt",
+            "cunt", "cunts",
             "dick", "dicks",
             "cock", "cocks",
             "pussy",
@@ -59,21 +57,32 @@ public final class ProfanityFilter {
             "jackass"
     );
 
-    /** Kısmen geçtiğinde de yeterli olan alt dizeler (substring). */
+    /** Kısmen geçtiğinde de yeterli olan alt dizeler (substring) — normalize edilmiş formda. */
     private static final Set<String> BLOCKED_SUBSTRINGS = Set.of(
             "sikeyim", "sikiyor", "orospu", "amina", "yarrak", "pezevenk",
-            "motherfuck", "bullshit", "horseshit", "wtf"
+            "motherfuck", "bullshit", "horseshit", "fuckin", "asshole"
     );
 
     private static final Pattern WORD_SPLIT = Pattern.compile("[\\s\\p{Punct}]+");
 
     /**
      * Metin, bilinen en az bir yasak kelime/alt dize içeriyorsa {@code true} döner.
+     * "4" karakteri hem "a" (standart leet) hem "u" ("f4ck"→"fuck") olarak iki geçişte denenir.
      */
     public static boolean containsProfanity(String text) {
         if (text == null || text.isBlank()) return false;
 
-        String normalized = text.toLowerCase()
+        // Geçiş 1 — 4→a (standart leet: "h4te" → "hate")
+        if (checkNormalized(normalize(text, '4', 'a'))) return true;
+
+        // Geçiş 2 — 4→u ("f4ck" → "fuck")
+        if (checkNormalized(normalize(text, '4', 'u'))) return true;
+
+        return false;
+    }
+
+    private static String normalize(String text, char leetChar, char replacement) {
+        return text.toLowerCase()
                 // Türkçe karakterler
                 .replace("ı", "i").replace("İ", "i")
                 .replace("ş", "s").replace("Ş", "s")
@@ -85,7 +94,7 @@ public final class ProfanityFilter {
                 .replace("0", "o")
                 .replace("1", "i")
                 .replace("3", "e")
-                .replace("4", "a")
+                .replace(String.valueOf(leetChar), String.valueOf(replacement))
                 .replace("5", "s")
                 .replace("7", "t")
                 .replace("@", "a")
@@ -93,18 +102,18 @@ public final class ProfanityFilter {
                 .replace("|", "i")
                 // Tekrarlanan karakterleri birleştir (fuuuck → fuck)
                 .replaceAll("(.)\\1{2,}", "$1$1");
+    }
 
+    private static boolean checkNormalized(String normalized) {
         // Kelime bazlı eşleme
         String[] tokens = WORD_SPLIT.split(normalized);
         for (String token : tokens) {
             if (BLOCKED_WORDS.contains(token)) return true;
         }
-
         // Alt dize eşlemesi (bitişik yazılmış, örn. "motherfuckers")
         for (String sub : BLOCKED_SUBSTRINGS) {
             if (normalized.contains(sub)) return true;
         }
-
         return false;
     }
 }
