@@ -11,7 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "product")
+@Table(
+        name = "product",
+        indexes = {
+                @Index(name = "idx_product_active_created_id", columnList = "is_active, created_at, id"),
+                @Index(name = "idx_product_active_tag_id", columnList = "is_active, tag_id")
+        }
+)
 @Getter
 @Setter
 public class Product extends BaseEntity {
