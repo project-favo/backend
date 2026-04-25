@@ -161,9 +161,10 @@ public class ProductController {
      */
     @GetMapping("/home")
     public ResponseEntity<ProductSearchResultDto> getHomeFeed(
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20) Pageable pageable,
+            @RequestParam(required = false, defaultValue = "newest") String sortBy
     ) {
-        ProductSearchResultDto result = productService.getHomeFeed(pageable);
+        ProductSearchResultDto result = productService.getHomeFeed(pageable, sortBy);
         return ResponseEntity.ok(result);
     }
 
@@ -187,9 +188,10 @@ public class ProductController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) List<Long> tagIds,
             @RequestParam(required = false) String categoryPathPrefix,
+            @RequestParam(required = false, defaultValue = "newest") String sortBy,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        ProductSearchResultDto result = productService.searchAndFilter(q, tagIds, categoryPathPrefix, pageable);
+        ProductSearchResultDto result = productService.searchAndFilter(q, tagIds, categoryPathPrefix, pageable, sortBy);
         return ResponseEntity.ok(result);
     }
 

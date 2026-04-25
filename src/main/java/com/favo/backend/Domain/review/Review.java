@@ -14,7 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "review")
+@Table(
+        name = "review",
+        indexes = {
+                @Index(name = "idx_review_active_product", columnList = "is_active, product_id"),
+                @Index(name = "idx_review_active_product_rating", columnList = "is_active, product_id, rating")
+        }
+)
 @Getter
 @Setter
 public class Review extends BaseEntity {

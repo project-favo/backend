@@ -99,10 +99,17 @@ public class ProductService {
     /**
      * Ana sayfa feed: Önce sayfa ID'leri çekilir (sıra sabit), sonra entity'ler fetch join ile.
      * Böylece Hibernate DISTINCT+FETCH sayfa kayması (1 ürün gelmesi) olmaz.
+     * @param sortBy Sıralama kriteri: newest (varsayılan), rating_desc, rating_asc, reviews_desc, reviews_asc
      */
-    public ProductSearchResultDto getHomeFeed(Pageable pageable) {
+    public ProductSearchResultDto getHomeFeed(Pageable pageable, String sortBy) {
         Pageable safe = pageable != null ? pageable : PageRequest.of(0, 6);
-        Page<Long> idPage = productRepository.findActiveProductIdsOrderByCreatedAtDescIdAsc(safe);
+        Page<Long> idPage = switch (sortBy != null ? sortBy.toLowerCase() : "newest") {
+            case "rating_desc" -> productRepository.findActiveProductIdsOrderByRatingDesc(safe);
+            case "rating_asc" -> productRepository.findActiveProductIdsOrderByRatingAsc(safe);
+            case "reviews_desc" -> productRepository.findActiveProductIdsOrderByReviewCountDesc(safe);
+            case "reviews_asc" -> productRepository.findActiveProductIdsOrderByReviewCountAsc(safe);
+            default -> productRepository.findActiveProductIdsOrderByCreatedAtDescIdAsc(safe);
+        };
         List<Long> ids = idPage.getContent();
         if (ids.isEmpty()) {
             return new ProductSearchResultDto(List.of(), idPage.getTotalElements(), idPage.getTotalPages(), idPage.getSize(), idPage.getNumber());
@@ -120,14 +127,20 @@ public class ProductService {
      * @param tagIds Bu tag'lerden birine ait ürünler (boş/null = filtre yok)
      * @param categoryPathPrefix Tag categoryPath bu prefix ile başlayan ürünler (boş/null = filtre yok)
      * @param pageable Sayfa (page, size)
+     * @param sortBy Sıralama kriteri: newest (varsayılan), rating_desc, rating_asc, reviews_desc, reviews_asc
      */
-    public ProductSearchResultDto searchAndFilter(String q, List<Long> tagIds, String categoryPathPrefix, Pageable pageable) {
-        // Boş liste yerine null geçiriyoruz; JPQL'de SIZE() Türkçe locale'de SQL'e "sıze" olarak çevriliyor ve MySQL'de yok
+    public ProductSearchResultDto searchAndFilter(String q, List<Long> tagIds, String categoryPathPrefix, Pageable pageable, String sortBy) {
         List<Long> safeTagIds = (tagIds != null && !tagIds.isEmpty()) ? tagIds : null;
         Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 6);
         String qTrimmed = (q != null && !q.isBlank()) ? q.trim() : null;
         String pathPrefix = (categoryPathPrefix != null && !categoryPathPrefix.isBlank()) ? categoryPathPrefix.trim() : null;
-        Page<Long> idPage = productRepository.searchProductIds(qTrimmed, safeTagIds, pathPrefix, safePageable);
+        Page<Long> idPage = switch (sortBy != null ? sortBy.toLowerCase() : "newest") {
+            case "rating_desc" -> productRepository.searchProductIdsByRatingDesc(pathPrefix, safePageable);
+            case "rating_asc" -> productRepository.searchProductIdsByRatingAsc(pathPrefix, safePageable);
+            case "reviews_desc" -> productRepository.searchProductIdsByReviewCountDesc(pathPrefix, safePageable);
+            case "reviews_asc" -> productRepository.searchProductIdsByReviewCountAsc(pathPrefix, safePageable);
+            default -> productRepository.searchProductIds(qTrimmed, safeTagIds, pathPrefix, safePageable);
+        };
         List<Long> ids = idPage.getContent();
         if (ids.isEmpty()) {
             return new ProductSearchResultDto(List.of(), idPage.getTotalElements(), idPage.getTotalPages(), idPage.getSize(), idPage.getNumber());

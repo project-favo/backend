@@ -27,6 +27,58 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
     Page<Long> findActiveProductIdsOrderByCreatedAtDescIdAsc(Pageable pageable);
 
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "ORDER BY COALESCE(rs.avg_rating, 0) DESC, p.id ASC",
+           countQuery = "SELECT COUNT(*) FROM product WHERE is_active = true",
+           nativeQuery = true)
+    Page<Long> findActiveProductIdsOrderByRatingDesc(Pageable pageable);
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "ORDER BY COALESCE(rs.avg_rating, 0) ASC, p.id ASC",
+           countQuery = "SELECT COUNT(*) FROM product WHERE is_active = true",
+           nativeQuery = true)
+    Page<Long> findActiveProductIdsOrderByRatingAsc(Pageable pageable);
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "ORDER BY COALESCE(rs.review_count, 0) DESC, p.id ASC",
+           countQuery = "SELECT COUNT(*) FROM product WHERE is_active = true",
+           nativeQuery = true)
+    Page<Long> findActiveProductIdsOrderByReviewCountDesc(Pageable pageable);
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "ORDER BY COALESCE(rs.review_count, 0) ASC, p.id ASC",
+           countQuery = "SELECT COUNT(*) FROM product WHERE is_active = true",
+           nativeQuery = true)
+    Page<Long> findActiveProductIdsOrderByReviewCountAsc(Pageable pageable);
+
     /**
      * Verilen ID listesine göre ürünleri tag + parent ile getir (sıra korunmaz, service'de sıralanır).
      */
@@ -49,7 +101,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     int softDeleteAll();
 
     /**
-     * Search & Filter: Sayfa için sadece ID listesi (sayfa kayması önlenir).
+     * Search & Filter: Sayfa için sadece ID listesi (sayfa kayması önlenir). Sıra: createdAt DESC.
      */
     @Query(value = "SELECT p.id FROM Product p LEFT JOIN p.tag t " +
            "WHERE p.isActive = true " +
@@ -65,6 +117,90 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Long> searchProductIds(
             @Param("q") String q,
             @Param("tagIds") List<Long> tagIds,
+            @Param("categoryPathPrefix") String categoryPathPrefix,
+            Pageable pageable
+    );
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
+           "ORDER BY COALESCE(rs.avg_rating, 0) DESC, p.id ASC",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))",
+           nativeQuery = true)
+    Page<Long> searchProductIdsByRatingDesc(
+            @Param("categoryPathPrefix") String categoryPathPrefix,
+            Pageable pageable
+    );
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
+           "ORDER BY COALESCE(rs.avg_rating, 0) ASC, p.id ASC",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))",
+           nativeQuery = true)
+    Page<Long> searchProductIdsByRatingAsc(
+            @Param("categoryPathPrefix") String categoryPathPrefix,
+            Pageable pageable
+    );
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
+           "ORDER BY COALESCE(rs.review_count, 0) DESC, p.id ASC",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))",
+           nativeQuery = true)
+    Page<Long> searchProductIdsByReviewCountDesc(
+            @Param("categoryPathPrefix") String categoryPathPrefix,
+            Pageable pageable
+    );
+
+    @Query(value = "SELECT p.id FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "LEFT JOIN (" +
+           "  SELECT r.product_id AS product_id, AVG(r.rating) AS avg_rating, COUNT(*) AS review_count " +
+           "  FROM review r " +
+           "  WHERE r.is_active = true " +
+           "  GROUP BY r.product_id" +
+           ") rs ON rs.product_id = p.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%'))) " +
+           "ORDER BY COALESCE(rs.review_count, 0) ASC, p.id ASC",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM product p " +
+           "LEFT JOIN tag t ON p.tag_id = t.id " +
+           "WHERE p.is_active = true " +
+           "AND (:categoryPathPrefix IS NULL OR :categoryPathPrefix = '' OR LOWER(t.category_path) LIKE LOWER(CONCAT(:categoryPathPrefix, '%')))",
+           nativeQuery = true)
+    Page<Long> searchProductIdsByReviewCountAsc(
             @Param("categoryPathPrefix") String categoryPathPrefix,
             Pageable pageable
     );
