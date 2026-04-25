@@ -10,6 +10,10 @@ import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Review.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -70,19 +74,20 @@ public class ReviewController {
     }
 
     /**
-     * 👤 Giriş yapmış kullanıcının kendi review'ları (My Reviews)
-     * GET /api/reviews/me
+     * 👤 Giriş yapmış kullanıcının kendi review'ları (My Reviews) — sayfalı
+     * GET /api/reviews/me?page=0&size=20&sort=createdAt,desc
      *
-     * Token zorunlu. En yeni önce sıralı.
-     * Response: 200 OK + List<ReviewResponseDto>
+     * Token zorunlu.
+     * Response: 200 OK + Spring Page JSON ({@code content}, {@code totalElements}, …)
      * Error: 401 Unauthorized - Token yoksa veya geçersizse
      */
     @GetMapping("/me")
-    public ResponseEntity<List<ReviewResponseDto>> getMyReviews(
-            @AuthenticationPrincipal SystemUser user
+    public ResponseEntity<Page<ReviewResponseDto>> getMyReviews(
+            @AuthenticationPrincipal SystemUser user,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        List<ReviewResponseDto> reviews = reviewService.getMyReviews(user);
-        return ResponseEntity.ok(reviews);
+        Page<ReviewResponseDto> page = reviewService.getMyReviews(user, pageable);
+        return ResponseEntity.ok(page);
     }
 
     /**

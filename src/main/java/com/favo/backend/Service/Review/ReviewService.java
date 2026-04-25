@@ -27,7 +27,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -272,14 +275,19 @@ public class ReviewService {
     }
 
     /**
-     * Giriş yapmış kullanıcının kendi review'larını getir (My Reviews).
-     * En yeni önce sıralı.
+     * Giriş yapmış kullanıcının kendi review'larını getir (My Reviews) — sayfalı.
+     * Varsayılan sıra: {@code createdAt} azalan.
      */
-    public List<ReviewResponseDto> getMyReviews(SystemUser user) {
+    public Page<ReviewResponseDto> getMyReviews(SystemUser user, Pageable pageable) {
         if (user == null) {
             throw new RuntimeException("Authentication required");
         }
-        return getReviewsByUserId(user.getId(), user.getId());
+        int size = Math.min(Math.max(pageable.getPageSize(), 1), 50);
+        int pageNumber = Math.max(pageable.getPageNumber(), 0);
+        Pageable sanitized = PageRequest.of(pageNumber, size, pageable.getSort());
+        Page<Review> page = reviewRepository.findByOwnerIdWithRelationsPage(user.getId(), sanitized);
+        List<ReviewResponseDto> content = toResponseDtos(page.getContent(), user.getId());
+        return new PageImpl<>(content, sanitized, page.getTotalElements());
     }
 
     /**
