@@ -52,6 +52,17 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "WHERE r.owner.id = :ownerId AND r.isActive = true AND p.isActive = true AND o.isActive = true ORDER BY r.createdAt DESC")
     List<Review> findByOwnerIdWithRelations(@Param("ownerId") Long ownerId);
 
+    /**
+     * Giriş yapan kullanıcının review'ları — sayfalı (My Reviews). Medya fetch join yok.
+     */
+    @Query(value = "SELECT DISTINCT r FROM Review r " +
+           "LEFT JOIN FETCH r.product p " +
+           "LEFT JOIN FETCH r.owner o " +
+           "WHERE r.owner.id = :ownerId AND r.isActive = true AND p.isActive = true AND o.isActive = true",
+           countQuery = "SELECT COUNT(DISTINCT r) FROM Review r " +
+           "WHERE r.owner.id = :ownerId AND r.isActive = true AND r.product.isActive = true AND r.owner.isActive = true")
+    Page<Review> findByOwnerIdWithRelationsPage(@Param("ownerId") Long ownerId, Pageable pageable);
+
     @Query("SELECT r FROM Review r " +
            "LEFT JOIN FETCH r.product p " +
            "LEFT JOIN FETCH r.owner o " +
