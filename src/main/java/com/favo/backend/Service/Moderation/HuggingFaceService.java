@@ -47,6 +47,12 @@ public class HuggingFaceService {
             return new ToxicityResultDto(null, false);
         }
 
+        // Bilinen küfür/hakaret kelimelerini modelden önce yakala.
+        if (ProfanityFilter.containsProfanity(text)) {
+            log.info("Profanity blocklist hit — text flagged before HuggingFace call.");
+            return new ToxicityResultDto(1.0, true);
+        }
+
         String apiToken = resolveHuggingFaceToken();
         if (apiToken.isBlank()) {
             log.warn("HuggingFace token missing; skipping toxicity call.");
@@ -66,7 +72,7 @@ public class HuggingFaceService {
             }
 
             Double toxicScore = extractCombinedToxicityScore(rootList);
-            boolean isToxic = toxicScore != null && toxicScore >= 0.80;
+            boolean isToxic = toxicScore != null && toxicScore >= 0.70;
             return new ToxicityResultDto(toxicScore, isToxic);
         } catch (Exception ex) {
             log.warn("HuggingFace toxicity call failed: {}", ex.getMessage());
