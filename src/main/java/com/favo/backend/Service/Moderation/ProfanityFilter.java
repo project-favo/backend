@@ -61,7 +61,7 @@ public final class ProfanityFilter {
 
     /** Kısmen geçtiğinde de yeterli olan alt dizeler (substring). */
     private static final Set<String> BLOCKED_SUBSTRINGS = Set.of(
-            "sikeyim", "sikiyor", "orospu", "amına", "yarrak", "pezevenk",
+            "sikeyim", "sikiyor", "orospu", "amina", "yarrak", "pezevenk",
             "motherfuck", "bullshit", "horseshit", "wtf"
     );
 
@@ -74,18 +74,25 @@ public final class ProfanityFilter {
         if (text == null || text.isBlank()) return false;
 
         String normalized = text.toLowerCase()
-                .replace("ı", "i")
-                .replace("ş", "s")
-                .replace("ğ", "g")
-                .replace("ü", "u")
-                .replace("ö", "o")
-                .replace("ç", "c")
-                .replace("İ", "i")
-                .replace("Ş", "s")
-                .replace("Ğ", "g")
-                .replace("Ü", "u")
-                .replace("Ö", "o")
-                .replace("Ç", "c");
+                // Türkçe karakterler
+                .replace("ı", "i").replace("İ", "i")
+                .replace("ş", "s").replace("Ş", "s")
+                .replace("ğ", "g").replace("Ğ", "g")
+                .replace("ü", "u").replace("Ü", "u")
+                .replace("ö", "o").replace("Ö", "o")
+                .replace("ç", "c").replace("Ç", "c")
+                // Leet speak: sayı/sembol → harf
+                .replace("0", "o")
+                .replace("1", "i")
+                .replace("3", "e")
+                .replace("4", "a")
+                .replace("5", "s")
+                .replace("7", "t")
+                .replace("@", "a")
+                .replace("$", "s")
+                .replace("|", "i")
+                // Tekrarlanan karakterleri birleştir (fuuuck → fuck)
+                .replaceAll("(.)\\1{2,}", "$1$1");
 
         // Kelime bazlı eşleme
         String[] tokens = WORD_SPLIT.split(normalized);
