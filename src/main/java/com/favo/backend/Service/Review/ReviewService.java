@@ -312,11 +312,14 @@ public class ReviewService {
             throw new RuntimeException("You can only update your own reviews");
         }
 
-        // Güncelleme
+        // Güncelleme — metin değişikliği varsa toxicity yeniden çalışacak
+        boolean textChanged = false;
         if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            if (!request.getTitle().equals(review.getTitle())) textChanged = true;
             review.setTitle(request.getTitle());
         }
         if (request.getDescription() != null) {
+            if (!request.getDescription().equals(review.getDescription())) textChanged = true;
             review.setDescription(request.getDescription());
         }
         if (request.getIsCollaborative() != null) {
@@ -327,6 +330,15 @@ public class ReviewService {
                 throw new RuntimeException("Rating must be between 1 and 5");
             }
             review.setRating(request.getRating());
+        }
+
+        // Metin güncellendiyse moderation durumunu sıfırla; toxicity check kaydedildikten sonra async tetiklenir.
+        if (textChanged) {
+            review.setModerationStatus(ModerationStatus.PENDING);
+            review.setAutoFlagged(false);
+            review.setToxicityScore(null);
+            review.setToxicityCheckedAt(null);
+            review.setIsActive(true);
         }
 
         // Media güncelleme: retain (koru) + upload (yeni yükle) ayrımı yapılır.
@@ -380,6 +392,9 @@ public class ReviewService {
         }
 
         Review updated = reviewRepository.save(review);
+        if (textChanged) {
+            toxicityService.analyzeAndApplyAsync(updated.getId());
+        }
         return toResponseDto(updated, user.getId());
     }
 
