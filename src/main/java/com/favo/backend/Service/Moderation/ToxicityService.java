@@ -29,7 +29,13 @@ public class ToxicityService {
 
     @Transactional
     public void analyzeAndApply(Review review) {
-        ToxicityResultDto result = huggingFaceService.analyze(review.getDescription());
+        // Title ve description'ı birleştirerek analiz et.
+        // Kullanıcı sadece title girmiş olabilir; description null ise sadece title kullanılır.
+        String title = review.getTitle() != null ? review.getTitle().trim() : "";
+        String description = review.getDescription() != null ? review.getDescription().trim() : "";
+        String textToAnalyze = description.isEmpty() ? title : (title + " " + description).trim();
+
+        ToxicityResultDto result = huggingFaceService.analyze(textToAnalyze);
         LocalDateTime now = LocalDateTime.now();
 
         review.setToxicityScore(result.getToxicScore());
