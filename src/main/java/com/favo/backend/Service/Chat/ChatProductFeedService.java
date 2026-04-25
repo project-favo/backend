@@ -367,6 +367,23 @@ public class ChatProductFeedService {
         if (applePhone) {
             list.add(0, "iphone");
         }
+        boolean samsungPhone = phone && (en.contains("samsung") || tr.contains("samsung"));
+        if (samsungPhone) {
+            list.add(0, "samsung");
+        }
+        boolean oppoPhone = phone && (en.contains("oppo") || tr.contains("oppo"));
+        if (oppoPhone) {
+            list.add(0, "oppo");
+        }
+        boolean xiaomiPhone = phone && (en.contains("xiaomi") || tr.contains("xiaomi")
+                || en.contains("redmi") || tr.contains("redmi"));
+        if (xiaomiPhone) {
+            list.add(0, "xiaomi");
+        }
+        boolean huaweiPhone = phone && (en.contains("huawei") || tr.contains("huawei"));
+        if (huaweiPhone) {
+            list.add(0, "huawei");
+        }
         boolean book = !watch && !phone && (tr.contains("kitap") || EN_BOOK_WORD.matcher(en).find());
         if (book) {
             list.add("book");
