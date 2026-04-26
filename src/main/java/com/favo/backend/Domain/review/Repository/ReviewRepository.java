@@ -111,6 +111,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("SELECT DISTINCT r FROM Review r LEFT JOIN FETCH r.product p LEFT JOIN FETCH r.owner o WHERE r.id = :id")
     Optional<Review> findByIdWithRelationsForAdmin(@Param("id") Long id);
 
+    /** Kullanıcının bu ürüne aktif yorumu var mı? */
+    boolean existsByOwnerIdAndProductIdAndIsActiveTrue(Long ownerId, Long productId);
+
     /** Aynı üründe yorumu olan diğer kullanıcıların id'leri (yeni yorum yazanı hariç). */
     @Query("SELECT DISTINCT r.owner.id FROM Review r WHERE r.product.id = :productId AND r.isActive = true AND r.owner.id <> :excludeOwnerId")
     List<Long> findDistinctOwnerIdsByProductIdExcludingOwner(
