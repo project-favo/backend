@@ -18,8 +18,12 @@ import java.util.Collections;
 public class ProductCompareService {
 
     private static final int COMPARE_MAX_DESC = 2000;
-    private static final int COMPARE_MAX_REVIEW_SNIPPETS = 4;
-    private static final int COMPARE_MAX_REVIEW_SNIPPET_CHARS = 180;
+    /**
+     * Ürün başına alıntı: tek ürün sohbeti ({@link ProductChatService}) ile aynı (8×220) — iki ürün olduğu için
+     * toplam yorum alıntısı 16; prompt ve maliyet sınırlı kalsın diye açıklama compare'de 2000 karakterle kısıtlı.
+     */
+    private static final int COMPARE_MAX_REVIEW_SNIPPETS = 8;
+    private static final int COMPARE_MAX_REVIEW_SNIPPET_CHARS = 220;
 
     private static final String COMPARE_USER_MESSAGE =
             "Please compare these two products for someone choosing between them. "
