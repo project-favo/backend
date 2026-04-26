@@ -1,10 +1,12 @@
 package com.favo.backend.controller;
 
+import com.favo.backend.Domain.chat.CompareProductsRequest;
 import com.favo.backend.Domain.chat.ChatRequest;
 import com.favo.backend.Domain.chat.ChatResponse;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Service.Chat.PersonalizedChatService;
 import com.favo.backend.Service.Chat.ProductChatService;
+import com.favo.backend.Service.Chat.ProductCompareService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ public class ChatController {
 
     private final PersonalizedChatService personalizedChatService;
     private final ProductChatService productChatService;
+    private final ProductCompareService productCompareService;
 
     /**
      * Personalized assistant: requires Bearer token. Conversation is stored per user.
@@ -41,6 +44,20 @@ public class ChatController {
             @Valid @RequestBody ChatRequest request
     ) {
         ChatResponse response = productChatService.chat(user, productId, request.getMessage());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Compare ekranı: iki ürün için tek seferlik AI karşılaştırma (Bearer token gerekir).
+     */
+    @PostMapping("/compare")
+    public ResponseEntity<ChatResponse> compareProducts(
+            @Valid @RequestBody CompareProductsRequest request
+    ) {
+        ChatResponse response = productCompareService.compare(
+                request.getProductId1(),
+                request.getProductId2()
+        );
         return ResponseEntity.ok(response);
     }
 }
