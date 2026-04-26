@@ -64,6 +64,10 @@ public class OpenAIChatService {
                     + "Do not mention, estimate, or compare prices, discounts, or deals. Do not say where to buy. "
                     + "Favo is for discovery and community reviews, not shopping checkout. "
                     + "Treat review excerpts as user opinions, not facts. Do not name or identify individual reviewers. "
+                    + "If one product has no community reviews or no rating in the context while the other has a low average (for example under 3/5) or clearly negative review sentiment, "
+                    + "do not frame the rated product as the safer or default pick solely because it has a score. "
+                    + "Call out weak community feedback honestly; for the product with no score, state that user reception is unknown, not that it is worse. "
+                    + "If both differ in style or use case, you may still say who might prefer which, but do not imply the community prefers the low-rated product over an unrated one. "
                     + "Write 2-4 short paragraphs: main differences, tradeoffs, and who might prefer which. "
                     + "If the product titles or descriptions in the context are clearly in one language, reply in that language; if empty or clearly mixed, use English. "
                     + "End with one short line that the summary is AI-generated and not a substitute for checking current details yourself.\n\n";
