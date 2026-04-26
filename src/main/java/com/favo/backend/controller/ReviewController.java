@@ -18,7 +18,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Review Controller
@@ -88,6 +90,21 @@ public class ReviewController {
     ) {
         Page<ReviewResponseDto> page = reviewService.getMyReviews(user, pageable);
         return ResponseEntity.ok(page);
+    }
+
+    /**
+     * Giriş yapan kullanıcının tüm yorumlarının ortalama rating'i (sayfa bağımsız).
+     * GET /api/reviews/me/average-rating
+     * Response: { "averageRating": 4.2 } veya yorum yoksa { "averageRating": null }
+     */
+    @GetMapping("/me/average-rating")
+    public ResponseEntity<Map<String, Double>> getMyReviewsAverageRating(
+            @AuthenticationPrincipal SystemUser user
+    ) {
+        Double avg = reviewService.getMyReviewsAverageRating(user);
+        Map<String, Double> body = new HashMap<>();
+        body.put("averageRating", avg);
+        return ResponseEntity.ok(body);
     }
 
     /**

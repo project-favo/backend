@@ -291,6 +291,17 @@ public class ReviewService {
     }
 
     /**
+     * Kullanıcının tüm aktif yorumlarının ortalama yıldızı (My Reviews profil metrikleri).
+     * Yorum yoksa {@code null}.
+     */
+    public Double getMyReviewsAverageRating(SystemUser user) {
+        if (user == null) {
+            throw new RuntimeException("Authentication required");
+        }
+        return reviewRepository.calculateAverageRatingByOwnerId(user.getId());
+    }
+
+    /**
      * En çok review yapan kullanıcıları getirir.
      * Yalnızca aktif review'lar ve aktif kullanıcılar sayılır.
      */
