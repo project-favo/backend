@@ -5,6 +5,8 @@ import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.review.*;
 import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
+import com.favo.backend.common.error.FavoException;
+import com.favo.backend.common.error.ReviewErrorCode;
 import com.favo.backend.Domain.review.Repository.TopReviewerProjection;
 import com.favo.backend.Domain.user.Repository.FolloweeFollowerCountProjection;
 import com.favo.backend.Domain.user.Repository.UserFollowRepository;
@@ -64,6 +66,13 @@ public class ReviewService {
         // Rating kontrolü (1-5 arası olmalı)
         if (request.getRating() == null || request.getRating() < 1 || request.getRating() > 5) {
             throw new RuntimeException("Rating must be between 1 and 5");
+        }
+
+        // Kullanıcı bu ürüne daha önce yorum yaptıysa engelle
+        if (reviewRepository.existsByOwnerIdAndProductIdAndIsActiveTrue(
+                generalUser.getId(), product.getId())) {
+            throw new FavoException(ReviewErrorCode.REVIEW_DUPLICATE_FOR_PRODUCT,
+                    java.util.Map.of("userId", generalUser.getId(), "productId", product.getId()));
         }
 
         // Review oluştur
