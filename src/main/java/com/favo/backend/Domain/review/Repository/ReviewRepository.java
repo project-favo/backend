@@ -88,6 +88,15 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "WHERE r.product.id = :productId AND r.isActive = true")
     Long countReviewsByProductId(@Param("productId") Long productId);
 
+    /**
+     * Giriş yapan kullanıcının tüm vitrin-uyumlu aktif yorumlarının ortalama rating'i.
+     * [getMyReviews] sayfalı sorgu ile aynı filtre (owner + aktif product + aktif owner).
+     */
+    @Query("SELECT AVG(r.rating) FROM Review r " +
+           "WHERE r.owner.id = :ownerId AND r.isActive = true " +
+           "AND r.product.isActive = true AND r.owner.isActive = true")
+    Double calculateAverageRatingByOwnerId(@Param("ownerId") Long ownerId);
+
     /** Admin: Tüm review'ları (aktif + pasif) product ve owner ile sayfalı getirir */
     @Query(value = "SELECT DISTINCT r FROM Review r LEFT JOIN FETCH r.product p LEFT JOIN FETCH r.owner o ORDER BY r.id",
            countQuery = "SELECT COUNT(r) FROM Review r")
