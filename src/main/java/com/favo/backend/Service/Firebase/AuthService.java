@@ -86,35 +86,25 @@ public class AuthService {
 
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
-        // Aynı Firebase UID ile tamamlanmış kayıt varsa reddet;
-        // doğrulanmamış (yarım kalan) kayıt varsa fiziksel olarak sil.
-        Optional<SystemUser> sameUid = systemUserRepository.findByFirebaseUid(info.getUid());
-        if (sameUid.isPresent()) {
-            SystemUser existing = sameUid.get();
+        // Aynı Firebase UID ile tamamlanmış kayıt varsa reddet.
+        // Doğrulanmamış ise e-posta koşulu zaten bulup güncelleyecek.
+        systemUserRepository.findByFirebaseUid(info.getUid()).ifPresent(existing -> {
             if (Boolean.TRUE.equals(existing.getEmailVerified())) {
                 throw new RuntimeException("USER_ALREADY_EXISTS");
             }
-            // Doğrulanmamış → yarım kalan kayıt; temizle
-            log.info("Incomplete registration with same Firebase UID found, removing. uid={}", info.getUid());
-            systemUserRepository.delete(existing);
-            systemUserRepository.flush();
-        }
+        });
 
-        // Aynı e-posta ile doğrulanmamış aktif kayıt varsa fiziksel olarak sil
-        // (kullanıcı farklı bir Firebase UID ile yeniden kayıt deniyor).
-        // email kolonu DB'de UNIQUE olduğu için önce silmek zorunlu.
-        Optional<SystemUser> sameEmail = systemUserRepository.findByEmail(info.getEmail());
-        if (sameEmail.isPresent()) {
-            SystemUser stale = sameEmail.get();
-            if (Boolean.TRUE.equals(stale.getIsActive()) && Boolean.TRUE.equals(stale.getEmailVerified())) {
+        // Aynı e-posta ile kayıt var mı?
+        Optional<SystemUser> existingOpt = systemUserRepository.findByEmail(info.getEmail());
+        if (existingOpt.isPresent()) {
+            SystemUser existing = existingOpt.get();
+            if (Boolean.TRUE.equals(existing.getEmailVerified())) {
                 throw new RuntimeException("EMAIL_ALREADY_REGISTERED");
             }
-            if (!Boolean.TRUE.equals(stale.getEmailVerified())) {
-                // Doğrulanmamış (aktif ya da pasif) → güvenle sil
-                log.info("Incomplete registration with same email found, removing. email={}", info.getEmail());
-                systemUserRepository.delete(stale);
-                systemUserRepository.flush();
-            }
+            // Doğrulanmamış yarım kayıt → fiziksel silme yapmadan üzerine güncelle (upsert).
+            // Silme: email UNIQUE + FK kısıtlamaları (ProfilePhoto vb.) sorun çıkarır.
+            return reRegisterOverIncomplete(
+                    existing, info, userName, name, surname, birthdate, profilePhotoData, profilePhotoMimeType);
         }
 
         if (userName.isBlank()) {
@@ -143,6 +133,63 @@ public class AuthService {
         }
 
         return user;
+    }
+
+    /**
+     * Aynı e-posta ile yarım kalan (doğrulanmamış) kayıt üzerine yeniden kayıt.
+     * Mevcut kaydı güncelleriz; fiziksel silme yapmayız — FK kısıtlamaları ve
+     * UNIQUE email constraint sorunlarını önlemek için.
+     */
+    private SystemUser reRegisterOverIncomplete(SystemUser existing,
+                                                FirebaseUserInfo info,
+                                                String userName,
+                                                String name,
+                                                String surname,
+                                                LocalDate birthdate,
+                                                byte[] profilePhotoData,
+                                                String profilePhotoMimeType) {
+        log.info("Re-registering over incomplete account. email={}, oldUid={}, newUid={}",
+                info.getEmail(), existing.getFirebaseUid(), info.getUid());
+
+        // Username değiştiyse, başka aktif kullanıcı kullanıyor mu kontrol et.
+        // (Aynı username'i tekrar kullanmak isteyen kullanıcı sorun değil.)
+        if (!userName.equals(existing.getUserName())
+                && systemUserRepository.existsByUserNameAndIsActiveTrue(userName)) {
+            throw new FavoException(UserErrorCode.USERNAME_ALREADY_TAKEN);
+        }
+
+        // Mevcut kaydı yeni Firebase UID ve verilerle güncelle.
+        existing.setFirebaseUid(info.getUid());
+        existing.setUserName(userName);
+        existing.setName(name);
+        existing.setSurname(surname);
+        existing.setBirthdate(birthdate);
+        existing.setIsActive(true);
+        existing.setEmailVerified(false);
+        existing.setVerificationEmailLastResendAt(null); // cooldown sıfırla
+        systemUserRepository.save(existing);
+
+        // Profil fotoğrafı: eskiyi pasifleştir, yeni varsa oluştur.
+        if (profilePhotoData != null && profilePhotoData.length > 0) {
+            profilePhotoRepository.findActiveByUserId(existing.getId()).ifPresent(old -> {
+                old.setIsActive(false);
+                profilePhotoRepository.save(old);
+            });
+            createProfilePhoto(existing, profilePhotoData, profilePhotoMimeType);
+        }
+
+        // Yeni doğrulama kodu gönder.
+        try {
+            var mail = emailVerificationService.issueVerificationEmail(existing);
+            if (!mail.sent()) {
+                log.error("Yeniden kayıt doğrulama e-postası gönderilmedi userId={} failureCode={}",
+                        existing.getId(), mail.failureCode());
+            }
+        } catch (Exception e) {
+            log.error("Could not send verification email for re-registration userId={}", existing.getId(), e);
+        }
+
+        return existing;
     }
 
     private SystemUser registerNewUser(FirebaseUserInfo info, String userName, String name, String surname, LocalDate birthdate) {
