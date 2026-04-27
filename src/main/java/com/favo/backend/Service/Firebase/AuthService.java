@@ -86,8 +86,35 @@ public class AuthService {
 
         FirebaseUserInfo info = firebaseAuthService.verify(firebaseIdToken);
 
-        if (systemUserRepository.existsByFirebaseUid(info.getUid())) {
-            throw new RuntimeException("USER_ALREADY_EXISTS");
+        // Aynı Firebase UID ile tamamlanmış kayıt varsa reddet;
+        // doğrulanmamış (yarım kalan) kayıt varsa fiziksel olarak sil.
+        Optional<SystemUser> sameUid = systemUserRepository.findByFirebaseUid(info.getUid());
+        if (sameUid.isPresent()) {
+            SystemUser existing = sameUid.get();
+            if (Boolean.TRUE.equals(existing.getEmailVerified())) {
+                throw new RuntimeException("USER_ALREADY_EXISTS");
+            }
+            // Doğrulanmamış → yarım kalan kayıt; temizle
+            log.info("Incomplete registration with same Firebase UID found, removing. uid={}", info.getUid());
+            systemUserRepository.delete(existing);
+            systemUserRepository.flush();
+        }
+
+        // Aynı e-posta ile doğrulanmamış aktif kayıt varsa fiziksel olarak sil
+        // (kullanıcı farklı bir Firebase UID ile yeniden kayıt deniyor).
+        // email kolonu DB'de UNIQUE olduğu için önce silmek zorunlu.
+        Optional<SystemUser> sameEmail = systemUserRepository.findByEmail(info.getEmail());
+        if (sameEmail.isPresent()) {
+            SystemUser stale = sameEmail.get();
+            if (Boolean.TRUE.equals(stale.getIsActive()) && Boolean.TRUE.equals(stale.getEmailVerified())) {
+                throw new RuntimeException("EMAIL_ALREADY_REGISTERED");
+            }
+            if (!Boolean.TRUE.equals(stale.getEmailVerified())) {
+                // Doğrulanmamış (aktif ya da pasif) → güvenle sil
+                log.info("Incomplete registration with same email found, removing. email={}", info.getEmail());
+                systemUserRepository.delete(stale);
+                systemUserRepository.flush();
+            }
         }
 
         if (userName.isBlank()) {
