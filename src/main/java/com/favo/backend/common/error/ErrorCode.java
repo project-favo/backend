@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
  * reserved numeric range and one {@link #getErrorCode()} string used in JSON
  * and logs.
  */
+
 public sealed interface ErrorCode permits AuthErrorCode, UserErrorCode, ReviewErrorCode, ProductErrorCode,
         NotificationErrorCode, MessageErrorCode, AiChatErrorCode, MediaErrorCode, EmailErrorCode, ModerationErrorCode,
         FeedErrorCode, SystemErrorCode {
