@@ -25,6 +25,9 @@ public class UserUpdateRequestDto {
 
     /** null = değiştirme; true/false = anonim profil tercihi */
     private Boolean profileAnonymous;
+
+    /** true = mevcut profil fotoğrafını sil (yeni fotoğraf yüklemeden) */
+    private Boolean removeProfilePhoto;
 }
 
 
