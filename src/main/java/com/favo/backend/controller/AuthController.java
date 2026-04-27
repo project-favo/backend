@@ -5,6 +5,7 @@ import com.favo.backend.Security.BearerTokenParser;
 import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Email.EmailVerificationService;
 import com.favo.backend.Service.Email.PasswordResetService;
+import com.favo.backend.Service.Email.PreRegistrationService;
 import com.favo.backend.Service.Firebase.AuthService;
 import com.favo.backend.Service.User.UserService;
 import jakarta.validation.Valid;
@@ -31,19 +32,22 @@ public class AuthController {
     private final UserMapper userMapper;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
+    private final PreRegistrationService preRegistrationService;
 
     public AuthController(
             AuthService authService,
             UserService userService,
             UserMapper userMapper,
             EmailVerificationService emailVerificationService,
-            PasswordResetService passwordResetService
+            PasswordResetService passwordResetService,
+            PreRegistrationService preRegistrationService
     ) {
         this.authService = authService;
         this.userService = userService;
         this.userMapper = userMapper;
         this.emailVerificationService = emailVerificationService;
         this.passwordResetService = passwordResetService;
+        this.preRegistrationService = preRegistrationService;
     }
 
     // POST /login — Bearer Firebase token; unverified email -> EMAIL_NOT_VERIFIED
@@ -165,6 +169,43 @@ public class AuthController {
                 "message",
                 "Bu e-posta adresiyle kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderildi."
         ));
+    }
+
+    /**
+     * Kayıt öncesi e-posta doğrulama kodu gönder — public, kullanıcı kaydı yok.
+     * POST /api/auth/pre-register/send-code   body: { "email": "..." }
+     */
+    @PostMapping("/pre-register/send-code")
+    public ResponseEntity<?> sendPreRegistrationCode(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        try {
+            preRegistrationService.sendCode(email);
+            return ResponseEntity.accepted().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (RuntimeException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "UNKNOWN_ERROR";
+            if (msg.contains("EMAIL_ALREADY_REGISTERED")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", msg));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", msg));
+        }
+    }
+
+    /**
+     * Kayıt öncesi kodu doğrula — public.
+     * POST /api/auth/pre-register/verify-code   body: { "email": "...", "code": "12345" }
+     */
+    @PostMapping("/pre-register/verify-code")
+    public ResponseEntity<?> verifyPreRegistrationCode(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String code = body.get("code");
+        try {
+            preRegistrationService.verifyCode(email, code);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping(value = "/register/multipart", consumes = "multipart/form-data")
