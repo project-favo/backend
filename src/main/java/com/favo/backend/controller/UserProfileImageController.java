@@ -30,7 +30,7 @@ public class UserProfileImageController {
         }
         ProfilePhoto photo = userService.getActiveProfilePhoto(userId);
         if (photo == null || photo.getImageData() == null || photo.getImageData().length == 0) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.noContent().build();
         }
         String mimeType = photo.getMimeType();
         if (mimeType == null || mimeType.isBlank()) {

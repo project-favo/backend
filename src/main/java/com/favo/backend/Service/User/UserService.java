@@ -77,7 +77,13 @@ public class UserService {
         }
 
         // Profile photo güncelleme
-        if (request.getProfilePhotoData() != null && request.getProfilePhotoData().length > 0) {
+        if (Boolean.TRUE.equals(request.getRemoveProfilePhoto())) {
+            profilePhotoRepository.findActiveByUserId(user.getId())
+                    .ifPresent(photo -> {
+                        photo.setIsActive(false);
+                        profilePhotoRepository.save(photo);
+                    });
+        } else if (request.getProfilePhotoData() != null && request.getProfilePhotoData().length > 0) {
             String mimeType = request.getProfilePhotoMimeType();
             if (mimeType == null || mimeType.isEmpty()) {
                 mimeType = "image/jpeg"; // Default mime type
