@@ -10,6 +10,7 @@ import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserType;
 import com.favo.backend.Security.SecurityRoles;
 import com.favo.backend.Service.Email.EmailVerificationService;
+import com.favo.backend.Service.Email.PreRegistrationService;
 import com.favo.backend.common.error.FavoException;
 import com.favo.backend.common.error.UserErrorCode;
 import lombok.NonNull;
@@ -33,19 +34,22 @@ public class AuthService {
     private final FirebaseAuthService firebaseAuthService;
     private final ProfilePhotoRepository profilePhotoRepository;
     private final EmailVerificationService emailVerificationService;
+    private final PreRegistrationService preRegistrationService;
 
     public AuthService(
             SystemUserRepository systemUserRepository,
             UserTypeRepository userTypeRepository,
             FirebaseAuthService firebaseAuthService,
             ProfilePhotoRepository profilePhotoRepository,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            PreRegistrationService preRegistrationService
     ) {
         this.systemUserRepository = systemUserRepository;
         this.userTypeRepository = userTypeRepository;
         this.firebaseAuthService = firebaseAuthService;
         this.profilePhotoRepository = profilePhotoRepository;
         this.emailVerificationService = emailVerificationService;
+        this.preRegistrationService = preRegistrationService;
     }
 
     @Transactional(readOnly = true)
@@ -94,6 +98,11 @@ public class AuthService {
             }
         });
 
+        // Kayıt öncesi e-posta doğrulaması tamamlandı mı?
+        if (!preRegistrationService.isEmailPreVerified(info.getEmail())) {
+            throw new RuntimeException("EMAIL_NOT_PRE_VERIFIED");
+        }
+
         // Aynı e-posta ile kayıt var mı?
         Optional<SystemUser> existingOpt = systemUserRepository.findByEmail(info.getEmail());
         if (existingOpt.isPresent()) {
@@ -101,8 +110,7 @@ public class AuthService {
             if (Boolean.TRUE.equals(existing.getEmailVerified())) {
                 throw new RuntimeException("EMAIL_ALREADY_REGISTERED");
             }
-            // Doğrulanmamış yarım kayıt → fiziksel silme yapmadan üzerine güncelle (upsert).
-            // Silme: email UNIQUE + FK kısıtlamaları (ProfilePhoto vb.) sorun çıkarır.
+            // Doğrulanmamış yarım kayıt → üzerine güncelle (upsert), emailVerified=true.
             return reRegisterOverIncomplete(
                     existing, info, userName, name, surname, birthdate, profilePhotoData, profilePhotoMimeType);
         }
@@ -115,21 +123,13 @@ public class AuthService {
             throw new FavoException(UserErrorCode.USERNAME_ALREADY_TAKEN);
         }
 
+        // Kayıt öncesi doğrulama başarılı → emailVerified=true ile kayıt.
         SystemUser user = registerNewUser(info, userName, name, surname, birthdate);
+        systemUserRepository.markEmailVerifiedTrue(user.getId());
+        preRegistrationService.consumeVerification(info.getEmail());
 
         if (profilePhotoData != null && profilePhotoData.length > 0) {
             createProfilePhoto(user, profilePhotoData, profilePhotoMimeType);
-        }
-
-        try {
-            var mail = emailVerificationService.issueVerificationEmail(user);
-            if (!mail.sent()) {
-                log.error(
-                        "Kayıt sonrası doğrulama e-postası gönderilmedi userId={} email={} failureCode={} detail={}",
-                        user.getId(), user.getEmail(), mail.failureCode(), mail.smtpDetail());
-            }
-        } catch (Exception e) {
-            log.error("Could not complete verification email flow for user id={}", user.getId(), e);
         }
 
         return user;
@@ -165,9 +165,12 @@ public class AuthService {
         existing.setSurname(surname);
         existing.setBirthdate(birthdate);
         existing.setIsActive(true);
-        existing.setEmailVerified(false);
-        existing.setVerificationEmailLastResendAt(null); // cooldown sıfırla
+        existing.setVerificationEmailLastResendAt(null);
         systemUserRepository.save(existing);
+
+        // emailVerified=true — kayıt öncesi doğrulama zaten tamamlandı.
+        systemUserRepository.markEmailVerifiedTrue(existing.getId());
+        preRegistrationService.consumeVerification(info.getEmail());
 
         // Profil fotoğrafı: eskiyi pasifleştir, yeni varsa oluştur.
         if (profilePhotoData != null && profilePhotoData.length > 0) {
@@ -176,17 +179,6 @@ public class AuthService {
                 profilePhotoRepository.save(old);
             });
             createProfilePhoto(existing, profilePhotoData, profilePhotoMimeType);
-        }
-
-        // Yeni doğrulama kodu gönder.
-        try {
-            var mail = emailVerificationService.issueVerificationEmail(existing);
-            if (!mail.sent()) {
-                log.error("Yeniden kayıt doğrulama e-postası gönderilmedi userId={} failureCode={}",
-                        existing.getId(), mail.failureCode());
-            }
-        } catch (Exception e) {
-            log.error("Could not send verification email for re-registration userId={}", existing.getId(), e);
         }
 
         return existing;
