@@ -13,6 +13,7 @@ import com.favo.backend.Service.Email.EmailVerificationService;
 import com.favo.backend.Service.Email.PreRegistrationService;
 import com.favo.backend.common.error.FavoException;
 import com.favo.backend.common.error.UserErrorCode;
+import com.favo.backend.common.validation.ProfileFieldValidation;
 import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,13 +119,16 @@ public class AuthService {
         if (userName.isBlank()) {
             throw new RuntimeException("USERNAME_REQUIRED");
         }
+        ProfileFieldValidation.validateUserNameLength(userName.trim());
+        ProfileFieldValidation.validateRegistrationNames(name, surname);
 
-        if (systemUserRepository.existsByUserNameAndIsActiveTrue(userName)) {
+        final String userNameTrimmed = userName.trim();
+        if (systemUserRepository.existsByUserNameAndIsActiveTrue(userNameTrimmed)) {
             throw new FavoException(UserErrorCode.USERNAME_ALREADY_TAKEN);
         }
 
         // Kayıt öncesi doğrulama başarılı → emailVerified=true ile kayıt.
-        SystemUser user = registerNewUser(info, userName, name, surname, birthdate);
+        SystemUser user = registerNewUser(info, userNameTrimmed, name.trim(), surname.trim(), birthdate);
         systemUserRepository.markEmailVerifiedTrue(user.getId());
         preRegistrationService.consumeVerification(info.getEmail());
 
@@ -153,16 +157,19 @@ public class AuthService {
 
         // Username değiştiyse, başka aktif kullanıcı kullanıyor mu kontrol et.
         // (Aynı username'i tekrar kullanmak isteyen kullanıcı sorun değil.)
-        if (!userName.equals(existing.getUserName())
-                && systemUserRepository.existsByUserNameAndIsActiveTrue(userName)) {
+        final String userNameTrimmed = userName.trim();
+        ProfileFieldValidation.validateUserNameLength(userNameTrimmed);
+        ProfileFieldValidation.validateRegistrationNames(name, surname);
+        if (!userNameTrimmed.equals(existing.getUserName())
+                && systemUserRepository.existsByUserNameAndIsActiveTrue(userNameTrimmed)) {
             throw new FavoException(UserErrorCode.USERNAME_ALREADY_TAKEN);
         }
 
         // Mevcut kaydı yeni Firebase UID ve verilerle güncelle.
         existing.setFirebaseUid(info.getUid());
-        existing.setUserName(userName);
-        existing.setName(name);
-        existing.setSurname(surname);
+        existing.setUserName(userNameTrimmed);
+        existing.setName(name.trim());
+        existing.setSurname(surname.trim());
         existing.setBirthdate(birthdate);
         existing.setIsActive(true);
         existing.setVerificationEmailLastResendAt(null);
