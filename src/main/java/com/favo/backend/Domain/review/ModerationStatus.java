@@ -4,7 +4,9 @@ public enum ModerationStatus {
     PENDING,
     APPROVED,
     AUTO_FLAGGED,
+    REVIEW_REQUIRED,
     MANUALLY_FLAGGED,
-    REJECTED
+    REJECTED,
+    ANALYSIS_FAILED
 }
 
