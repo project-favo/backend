@@ -40,6 +40,15 @@ public enum UserErrorCode implements ErrorCode {
     USER_UNFOLLOW_NOT_FOLLOWING(
             HttpStatus.BAD_REQUEST, 11009, "Cannot unfollow because this follow relationship does not exist.",
             ErrorSeverity.WARN, false, true),
+    PROFILE_USERNAME_TOO_LONG(
+            HttpStatus.BAD_REQUEST, 11011, "Username must be at most 20 characters.",
+            ErrorSeverity.WARN, false, true),
+    PROFILE_FIRST_NAME_TOO_LONG(
+            HttpStatus.BAD_REQUEST, 11012, "First name must be at most 20 characters.",
+            ErrorSeverity.WARN, false, true),
+    PROFILE_LAST_NAME_TOO_LONG(
+            HttpStatus.BAD_REQUEST, 11013, "Last name must be at most 20 characters.",
+            ErrorSeverity.WARN, false, true),
     /**
      * Bean validation (e.g. @Valid) or request body binding failed for a user profile request.
      */

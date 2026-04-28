@@ -5,6 +5,7 @@ import com.favo.backend.Domain.user.Repository.ProfilePhotoRepository;
 import com.favo.backend.Domain.user.Repository.SystemUserRepository;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserUpdateRequestDto;
+import com.favo.backend.common.validation.ProfileFieldValidation;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class UserService {
             if (newUserName.isBlank()) {
                 throw new RuntimeException("USERNAME_REQUIRED");
             }
+            ProfileFieldValidation.validateUserNameLength(newUserName);
 
             // Sadece aktif kullanıcılar arasında username kontrolü yap
             if (!newUserName.equals(user.getUserName())
@@ -51,12 +53,16 @@ public class UserService {
 
         // Name güncelleme
         if (request.getName() != null) {
-            user.setName(request.getName().trim().isEmpty() ? null : request.getName().trim());
+            String nameTrimmed = request.getName().trim();
+            ProfileFieldValidation.validateFirstNameLength(nameTrimmed);
+            user.setName(nameTrimmed.isEmpty() ? null : nameTrimmed);
         }
 
         // Surname güncelleme
         if (request.getSurname() != null) {
-            user.setSurname(request.getSurname().trim().isEmpty() ? null : request.getSurname().trim());
+            String surnameTrimmed = request.getSurname().trim();
+            ProfileFieldValidation.validateLastNameLength(surnameTrimmed);
+            user.setSurname(surnameTrimmed.isEmpty() ? null : surnameTrimmed);
         }
 
         // Birthdate güncelleme
@@ -142,6 +148,7 @@ public class UserService {
         if (newUserName == null || newUserName.isBlank()) {
             throw new RuntimeException("USERNAME_REQUIRED");
         }
+        ProfileFieldValidation.validateUserNameLength(newUserName.trim());
 
         // Sadece aktif kullanıcılar arasında username kontrolü yap
         if (!newUserName.equals(user.getUserName())
@@ -149,7 +156,7 @@ public class UserService {
             throw new RuntimeException("USERNAME_ALREADY_TAKEN");
         }
 
-        user.setUserName(newUserName);
+        user.setUserName(newUserName.trim());
         return systemUserRepository.save(user);
     }
 
