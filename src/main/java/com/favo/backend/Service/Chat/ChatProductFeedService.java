@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -825,27 +826,37 @@ public class ChatProductFeedService {
         Set<Long> likedIds = loadLikedProductIds(gu);
         List<Long> preferredTagIds = loadPreferredTagIdsFromLikes(gu);
 
-        List<Long> candidateIds;
         if (preferredTagIds.isEmpty()) {
-            // Likes niyeti varken newest fallback alakasiz sonuc uretiyor.
             return List.of();
-        } else {
+        }
+
+        // Fetch a larger pool across multiple pages so repeated requests surface different products.
+        int poolPerPage = CANDIDATE_POOL;
+        int pagesToFetch = 3;
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        for (int p = 0; p < pagesToFetch; p++) {
             Page<Long> page = productRepository.searchProductIds(
-                    null,
-                    preferredTagIds,
-                    null,
-                    PageRequest.of(0, CANDIDATE_POOL)
-            );
-            candidateIds = page.getContent().stream()
-                    .filter(id -> !likedIds.contains(id))
-                    .toList();
-            if (candidateIds.isEmpty()) {
-                return List.of();
+                    null, preferredTagIds, null, PageRequest.of(p, poolPerPage));
+            seen.addAll(page.getContent());
+            if (page.getContent().size() < poolPerPage) {
+                break;
             }
         }
 
-        List<Product> ordered = loadProductsPreservingOrder(candidateIds);
-        return toCardList(ordered, preferHighRated);
+        List<Long> candidateIds = seen.stream()
+                .filter(id -> !likedIds.contains(id))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        if (candidateIds.isEmpty()) {
+            return List.of();
+        }
+
+        // Shuffle so each request surfaces a different slice of the pool.
+        // preferHighRated will re-sort after shuffling in toCardList.
+        Collections.shuffle(candidateIds);
+
+        List<Product> products = loadProductsPreservingOrder(candidateIds);
+        return toCardList(products, preferHighRated);
     }
 
     /**
