@@ -74,4 +74,8 @@ public class Review extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "moderation_status", nullable = false, length = 32)
     private ModerationStatus moderationStatus = ModerationStatus.PENDING;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
 }
