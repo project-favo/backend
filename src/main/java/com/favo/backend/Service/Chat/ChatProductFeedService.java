@@ -285,6 +285,41 @@ public class ChatProductFeedService {
     private final TagRepository tagRepository;
 
     /**
+     * AI-driven product feed: uses the search query extracted directly by the language model
+     * instead of regex heuristics, plus applies a like-category boost to personalise results.
+     *
+     * @param aiQuery       search term provided by OpenAI (null means no search-based carousel)
+     * @param preferHighRated true when the user explicitly wants highly-rated products
+     * @param useUserLikes  true when the user explicitly asked for likes-based recommendations
+     */
+    public List<ChatProductCardDto> buildFeedWithAiIntent(
+            SystemUser user,
+            String aiQuery,
+            boolean preferHighRated,
+            boolean useUserLikes) {
+
+        Set<Long> preferredTagIds = loadPreferredTagIds(user);
+
+        if (aiQuery != null && !aiQuery.isBlank()) {
+            List<ChatProductCardDto> fromSearch = buildFromSearchQuery(
+                    aiQuery.trim(), aiQuery.trim(), preferHighRated, preferredTagIds);
+            if (!fromSearch.isEmpty()) {
+                return fromSearch;
+            }
+            if (useUserLikes && user instanceof GeneralUser gu) {
+                return buildFromLikedTags(gu, preferHighRated);
+            }
+            return List.of();
+        }
+
+        if (useUserLikes && user instanceof GeneralUser gu) {
+            return buildFromLikedTags(gu, preferHighRated);
+        }
+
+        return List.of();
+    }
+
+    /**
      * Mesaj ürün keşfi / öneri niyeti taşıyorsa gerçek ürün kartları üretir.
      * Öncelik: 1) Mesajdan çıkan arama terimi (TR/EN kalıplar + serbest kelimeler)
      * 2) Açıkça “beğendiğime göre” / “based on my likes” 3) Genel liste (yüksek puan istenmişse sıralama).
@@ -327,6 +362,14 @@ public class ChatProductFeedService {
                 || (shortContinuation && wantsLikesBasedRecommendation(retrieval));
         if (user instanceof GeneralUser gu && likesBasedAsk) {
             return buildFromLikedTags(gu, preferHighRated);
+        }
+
+        // Prefer likes-based carousel over a fully generic list when the user has liked products.
+        if (user instanceof GeneralUser gu) {
+            List<ChatProductCardDto> fromLikes = buildFromLikedTags(gu, preferHighRated);
+            if (!fromLikes.isEmpty()) {
+                return fromLikes;
+            }
         }
 
         return buildGenericNewest(user, userMessage, preferHighRated);
@@ -393,11 +436,15 @@ public class ChatProductFeedService {
 
     /** Sırayla dene: ilk anlamlı sonuç dönene kadar. */
     private List<ChatProductCardDto> buildFromSearchQueries(List<String> queries, String userMessage, boolean preferHighRated) {
+        return buildFromSearchQueries(queries, userMessage, preferHighRated, Set.of());
+    }
+
+    private List<ChatProductCardDto> buildFromSearchQueries(List<String> queries, String userMessage, boolean preferHighRated, Set<Long> preferredTagIds) {
         for (String q : queries) {
             if (q == null || q.isBlank()) {
                 continue;
             }
-            List<ChatProductCardDto> found = buildFromSearchQuery(q.trim(), userMessage, preferHighRated);
+            List<ChatProductCardDto> found = buildFromSearchQuery(q.trim(), userMessage, preferHighRated, preferredTagIds);
             if (!found.isEmpty()) {
                 return found;
             }
@@ -409,7 +456,7 @@ public class ChatProductFeedService {
      * Önce tag alt ağacı (categoryPath prefix) ile daraltır; isim+açıklama LIKE ile kesiştirilir.
      * Saat/telefon niyetinde kitap vb. yanlış kategoriler skor ile elenir.
      */
-    private List<ChatProductCardDto> buildFromSearchQuery(String q, String userMessage, boolean preferHighRated) {
+    private List<ChatProductCardDto> buildFromSearchQuery(String q, String userMessage, boolean preferHighRated, Set<Long> preferredTagIds) {
         Set<Long> subtreeTagIds = resolveSubtreeTagIdsForLiteral(q);
         List<Long> tagList = new ArrayList<>(subtreeTagIds);
         if (tagList.size() > 200) {
@@ -448,7 +495,7 @@ public class ChatProductFeedService {
         boolean phoneAsk = messageImpliesPhone(userMessage);
 
         List<Product> products = loadProductsPreservingOrder(ids);
-        products.sort(Comparator.comparing((Product p) -> relevanceScore(p, q, watchAsk, phoneAsk)).reversed());
+        products.sort(Comparator.comparing((Product p) -> relevanceScore(p, q, watchAsk, phoneAsk) + likesBonus(p, preferredTagIds)).reversed());
 
         products = products.stream()
                 .filter(p -> productMeetsQueryTextSpecificity(p, q))
@@ -686,6 +733,17 @@ public class ChatProductFeedService {
                 || (en.contains("phone") && !en.contains("headphone") && !en.contains("microphone"));
     }
 
+    /**
+     * Bonus score for products in a category the user has previously liked.
+     * Applied on top of text-based relevance so liked-category products surface first.
+     */
+    private static int likesBonus(Product p, Set<Long> preferredTagIds) {
+        if (preferredTagIds.isEmpty() || p == null || p.getTag() == null) {
+            return 0;
+        }
+        return preferredTagIds.contains(p.getTag().getId()) ? 20 : 0;
+    }
+
     private static int relevanceScore(Product p, String q, boolean watchAsk, boolean phoneAsk) {
         String path = "";
         String tagName = "";
@@ -821,7 +879,15 @@ public class ChatProductFeedService {
         return ids;
     }
 
-    private List<Long> loadPreferredTagIdsFromLikes(GeneralUser gu) {
+    /** Returns the preferred tag IDs for the current user (empty set for non-GeneralUsers). */
+    private Set<Long> loadPreferredTagIds(SystemUser user) {
+        if (!(user instanceof GeneralUser gu)) {
+            return Set.of();
+        }
+        return new HashSet<>(loadPreferredTagIdsFromLikes(gu));
+    }
+
+        private List<Long> loadPreferredTagIdsFromLikes(GeneralUser gu) {
         var page = productInteractionRepository.findLikedProductsByPerformerId(
                 gu.getId(),
                 PageRequest.of(0, MAX_LIKES_FOR_TAGS)

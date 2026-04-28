@@ -5,6 +5,7 @@ import com.favo.backend.Domain.chat.AiChatRole;
 import com.favo.backend.Domain.chat.ChatProductCardDto;
 import com.favo.backend.Domain.chat.ChatResponse;
 import com.favo.backend.Domain.chat.OpenAiChatTurn;
+import com.favo.backend.Domain.chat.OpenAiIntentResult;
 import com.favo.backend.Domain.chat.Repository.AiChatMessageRepository;
 import com.favo.backend.Domain.interaction.ProductInteraction;
 import com.favo.backend.Domain.interaction.Repository.ProductInteractionRepository;
@@ -52,12 +53,6 @@ public class PersonalizedChatService {
     private final ChatProductFeedService chatProductFeedService;
     private final TagRepository tagRepository;
 
-    private static final String CAROUSEL_SYSTEM_HINT =
-            "\n\nA product carousel with real items from our database will appear below your message in the app. "
-                    + "Keep the reply short (1–3 sentences). Align your answer with those cards (same topic/category); "
-                    + "do not describe a different product category than the carousel. "
-                    + "Do not invent product names that are not in the context above.";
-
     @Transactional
     public ChatResponse chat(SystemUser principal, String userMessage) {
         SystemUser user = userService.getCurrentUserWithRelations(principal);
@@ -65,16 +60,29 @@ public class PersonalizedChatService {
         List<OpenAiChatTurn> priorTurns = loadPriorTurnsChronological(user.getId());
         String personalizationBlock = buildPersonalizationBlock(user);
 
-        String feedRetrievalText = buildFeedRetrievalContext(priorTurns, userMessage);
-        List<ChatProductCardDto> productFeed = chatProductFeedService.buildFeed(user, userMessage, feedRetrievalText);
-
         String fullSystem = OpenAIChatService.BASE_SYSTEM_PROMPT
                 + "\n\n--- Personalized context (background; prioritize this chat thread over unrelated wishlist items) ---\n"
-                + personalizationBlock
-                + (productFeed.isEmpty() ? "" : CAROUSEL_SYSTEM_HINT);
+                + personalizationBlock;
 
-        ChatResponse response = openAIChatService.completeConversation(fullSystem, priorTurns, userMessage);
-        response.setProducts(productFeed);
+        // Primary path: ask OpenAI to return structured JSON with a product search query.
+        // This lets the AI drive product retrieval with semantic understanding instead of regex.
+        OpenAiIntentResult intentResult = openAIChatService.completeConversationWithIntent(
+                fullSystem, priorTurns, userMessage);
+
+        List<ChatProductCardDto> productFeed = chatProductFeedService.buildFeedWithAiIntent(
+                user,
+                intentResult.productSearchQuery(),
+                intentResult.preferHighRated(),
+                intentResult.useUserLikes());
+
+        // Fallback: if AI did not propose a search query but local heuristics detect product intent,
+        // run the classic heuristic feed so we never silently drop a valid recommendation request.
+        if (productFeed.isEmpty()) {
+            String feedRetrievalText = buildFeedRetrievalContext(priorTurns, userMessage);
+            productFeed = chatProductFeedService.buildFeed(user, userMessage, feedRetrievalText);
+        }
+
+        ChatResponse response = new ChatResponse(intentResult.reply(), productFeed);
 
         persistMessage(user, AiChatRole.USER, userMessage);
         persistMessage(user, AiChatRole.ASSISTANT, response.getReply());
