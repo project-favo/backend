@@ -139,7 +139,8 @@ public class InteractionService {
             } else {
                 // Like: Mevcut pasif like'ı tekrar aktif et (duplicate kayıt oluşturma)
                 like.setIsActive(true);
-                // createdAt'i güncelleme - bu ilk oluşturulma zamanını korur
+                // Friends feed ve beğenilen ürünler listesi createdAt ile sıralı; yeniden beğeni son aktivite gibi görünsün
+                like.setCreatedAt(LocalDateTime.now());
                 productInteractionRepository.save(like);
                 return true; // Like yapıldı
             }
