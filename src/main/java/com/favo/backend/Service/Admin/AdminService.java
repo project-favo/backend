@@ -14,6 +14,7 @@ import com.favo.backend.Domain.product.Tag;
 import com.favo.backend.Domain.review.Review;
 import com.favo.backend.Domain.review.ReviewResponseDto;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
+import com.favo.backend.Service.Notification.AppNotificationService;
 import com.favo.backend.Service.Review.ReviewService;
 import com.favo.backend.Domain.user.SystemUser;
 import com.favo.backend.Domain.user.UserResponseDto;
@@ -43,6 +44,7 @@ public class AdminService {
     private final ReviewRepository reviewRepository;
     private final ReviewService reviewService;
     private final UserService userService;
+    private final AppNotificationService appNotificationService;
     private final com.favo.backend.Domain.user.UserMapper userMapper;
     private final ProductInteractionRepository productInteractionRepository;
 
@@ -206,6 +208,13 @@ public class AdminService {
                 .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
         review.setIsActive(false);
         reviewRepository.save(review);
+        if (review.getOwner() != null && review.getProduct() != null) {
+            appNotificationService.pushReviewDeactivatedEvent(
+                    review.getOwner().getId(),
+                    review.getId(),
+                    review.getProduct().getId()
+            );
+        }
     }
 
     public void activateReview(Long reviewId) {
