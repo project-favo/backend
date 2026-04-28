@@ -10,7 +10,5 @@ public enum InAppNotificationType {
     /** Aynı üründe daha önce yorum yazmış kullanıcılara: biri daha yorum ekledi. */
     NEW_REVIEW_ON_SHARED_PRODUCT,
     /** Ürün listesinde satıcı alanı eklendiğinde kullanılacak (şimdilik üretilmiyor). */
-    PRODUCT_LIKED,
-    /** Admin tarafından bir yorum devre dışı bırakıldığında yorum sahibine gönderilir. */
-    REVIEW_DEACTIVATED
+    PRODUCT_LIKED
 }
