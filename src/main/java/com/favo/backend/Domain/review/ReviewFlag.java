@@ -50,9 +50,5 @@ public class ReviewFlag extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "resolution", length = 32)
     private FlagResolution resolution;
-
-    @Version
-    @Column(name = "version", nullable = false)
-    private Long version = 0L;
 }
 
