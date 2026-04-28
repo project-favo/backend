@@ -39,7 +39,7 @@ public class ChatProductFeedService {
     private static final int CANDIDATE_POOL = 40;
     private static final int MAX_LIKES_FOR_TAGS = 25;
     private static final int MAX_TAG_IDS = 50;
-    private static final int MAX_PREFERRED_TAGS_FROM_LIKES = 3;
+    private static final int MAX_PREFERRED_TAGS_FROM_LIKES = 6;
     private static final double MIN_DOMINANT_CATEGORY_SHARE = 0.55;
     private static final int MIN_RELEVANCE_FOR_STRICT_INTENT = 35;
     private static final int MIN_RELEVANCE_FOR_GENERIC_QUERY = 25;
@@ -830,17 +830,14 @@ public class ChatProductFeedService {
             return List.of();
         }
 
-        // Fetch a larger pool across multiple pages so repeated requests surface different products.
-        int poolPerPage = CANDIDATE_POOL;
-        int pagesToFetch = 3;
+        // Fetch candidates per liked tag category so every category gets equal representation.
+        // Without this, a tag with many DB products dominates the merged pool.
+        int perTagLimit = Math.max(FEED_SIZE, CANDIDATE_POOL / Math.max(preferredTagIds.size(), 1));
         LinkedHashSet<Long> seen = new LinkedHashSet<>();
-        for (int p = 0; p < pagesToFetch; p++) {
+        for (Long tagId : preferredTagIds) {
             Page<Long> page = productRepository.searchProductIds(
-                    null, preferredTagIds, null, PageRequest.of(p, poolPerPage));
+                    null, List.of(tagId), null, PageRequest.of(0, perTagLimit));
             seen.addAll(page.getContent());
-            if (page.getContent().size() < poolPerPage) {
-                break;
-            }
         }
 
         List<Long> candidateIds = seen.stream()
@@ -851,8 +848,7 @@ public class ChatProductFeedService {
             return List.of();
         }
 
-        // Shuffle so each request surfaces a different slice of the pool.
-        // preferHighRated will re-sort after shuffling in toCardList.
+        // Shuffle so each request surfaces a different slice of the diverse pool.
         Collections.shuffle(candidateIds);
 
         List<Product> products = loadProductsPreservingOrder(candidateIds);
@@ -898,41 +894,28 @@ public class ChatProductFeedService {
         return new HashSet<>(loadPreferredTagIdsFromLikes(gu));
     }
 
-        private List<Long> loadPreferredTagIdsFromLikes(GeneralUser gu) {
+    private List<Long> loadPreferredTagIdsFromLikes(GeneralUser gu) {
         var page = productInteractionRepository.findLikedProductsByPerformerId(
                 gu.getId(),
                 PageRequest.of(0, MAX_LIKES_FOR_TAGS)
         );
         Map<Long, Integer> tagFreq = new LinkedHashMap<>();
-        int total = 0;
         for (ProductInteraction pi : page.getContent()) {
             Product p = pi.getTargetProduct();
             if (p != null && p.getTag() != null && Boolean.TRUE.equals(p.getIsActive())) {
                 Long tagId = p.getTag().getId();
                 tagFreq.put(tagId, tagFreq.getOrDefault(tagId, 0) + 1);
-                total++;
             }
         }
         if (tagFreq.isEmpty()) {
             return List.of();
         }
-
-        final int totalLikes = Math.max(total, 1);
-        List<Map.Entry<Long, Integer>> sorted = tagFreq.entrySet().stream()
+        // Return ALL liked tag categories sorted by frequency (no minimum threshold).
+        // Even a single like in a new category earns a slot so variety improves over time.
+        return tagFreq.entrySet().stream()
                 .sorted(Map.Entry.<Long, Integer>comparingByValue().reversed())
-                .toList();
-
-        List<Long> selected = sorted.stream()
-                .filter(e -> e.getValue() >= 2 || ((double) e.getValue() / (double) totalLikes) >= 0.34)
                 .map(Map.Entry::getKey)
                 .limit(MAX_PREFERRED_TAGS_FROM_LIKES)
-                .toList();
-        if (!selected.isEmpty()) {
-            return selected;
-        }
-        return sorted.stream()
-                .map(Map.Entry::getKey)
-                .limit(1)
                 .toList();
     }
 
