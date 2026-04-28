@@ -183,6 +183,24 @@ public class AppNotificationService {
         pushNotificationService.notifyInAppEvent(recipient.getId(), type, title, body);
     }
 
+    /**
+     * Admin bir yorumu devre dışı bıraktığında (soft-delete / suspend) yorum sahibine
+     * kalıcı bildirim kaydı OLUŞTURMADAN sadece STOMP üzerinden anlık push gönderir.
+     * Mobil taraf bu event'i alınca local cache'i temizleyip ilgili ürün sayfasını yeniler.
+     */
+    public void pushReviewDeactivatedEvent(Long ownerId, Long reviewId, Long productId) {
+        try {
+            InAppNotificationDto dto = new InAppNotificationDto();
+            dto.setType(InAppNotificationType.REVIEW_DEACTIVATED);
+            dto.setPayloadJson(objectMapper.writeValueAsString(
+                    Map.of("reviewId", reviewId, "productId", productId)));
+            NotificationPushDto push = new NotificationPushDto(unreadCount(ownerId), dto);
+            messagingTemplate.convertAndSendToUser(String.valueOf(ownerId), "/queue/notifications", push);
+        } catch (Exception e) {
+            log.debug("pushReviewDeactivatedEvent skipped for owner {}: {}", ownerId, e.getMessage());
+        }
+    }
+
     private void pushToUser(long userId, NotificationPushDto payload) {
         try {
             messagingTemplate.convertAndSendToUser(String.valueOf(userId), "/queue/notifications", payload);
