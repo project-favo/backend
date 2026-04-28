@@ -33,6 +33,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PersonalizedChatService {
 
     private static final int MAX_LIKED_PRODUCTS = 15;
@@ -69,18 +70,28 @@ public class PersonalizedChatService {
         OpenAiIntentResult intentResult = openAIChatService.completeConversationWithIntent(
                 fullSystem, priorTurns, userMessage);
 
+        log.info("[CHAT] userId={} | product_search='{}' | prefer_high_rated={} | use_my_likes={}",
+                user.getId(), intentResult.productSearchQuery(),
+                intentResult.preferHighRated(), intentResult.useUserLikes());
+
         List<ChatProductCardDto> productFeed = chatProductFeedService.buildFeedWithAiIntent(
                 user,
                 intentResult.productSearchQuery(),
                 intentResult.preferHighRated(),
                 intentResult.useUserLikes());
 
+        log.info("[CHAT] AI feed size={} for userId={}", productFeed.size(), user.getId());
+
         // Fallback: if AI did not propose a search query but local heuristics detect product intent,
         // run the classic heuristic feed so we never silently drop a valid recommendation request.
         if (productFeed.isEmpty()) {
             String feedRetrievalText = buildFeedRetrievalContext(priorTurns, userMessage);
             productFeed = chatProductFeedService.buildFeed(user, userMessage, feedRetrievalText);
+            log.info("[CHAT] Fallback heuristic feed size={} for userId={}", productFeed.size(), user.getId());
         }
+
+        log.info("[CHAT] Final feed products: {}",
+                productFeed.stream().map(p -> p.getId() + ":" + p.getName()).toList());
 
         ChatResponse response = new ChatResponse(intentResult.reply(), productFeed);
 
