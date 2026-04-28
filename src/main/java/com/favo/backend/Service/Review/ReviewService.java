@@ -83,11 +83,51 @@ public class ReviewService {
             throw new FavoException(ReviewErrorCode.REVIEW_CONTENT_EMPTY);
         }
 
-        // Kullanıcı bu ürüne daha önce yorum yaptıysa engelle
-        if (reviewRepository.existsByOwnerIdAndProductIdAndIsActiveTrue(
-                generalUser.getId(), product.getId())) {
-            throw new FavoException(ReviewErrorCode.REVIEW_DUPLICATE_FOR_PRODUCT,
-                    java.util.Map.of("userId", generalUser.getId(), "productId", product.getId()));
+        // Aynı ürün için daha önce review varsa:
+        // - aktifse duplicate
+        // - pasifse tekrar aktif edip güncelle (soft-delete sonrası yeniden yorum akışı)
+        var existingAny = reviewRepository.findTopByOwnerIdAndProductIdOrderByIdDesc(
+                generalUser.getId(), product.getId());
+        if (existingAny.isPresent()) {
+            Review existing = existingAny.get();
+            if (Boolean.TRUE.equals(existing.getIsActive())) {
+                throw new FavoException(ReviewErrorCode.REVIEW_DUPLICATE_FOR_PRODUCT,
+                        java.util.Map.of("userId", generalUser.getId(), "productId", product.getId()));
+            }
+            existing.setTitle(request.getTitle());
+            existing.setDescription(request.getDescription());
+            existing.setIsCollaborative(request.getIsCollaborative() != null ? request.getIsCollaborative() : false);
+            existing.setRating(request.getRating());
+            existing.setProduct(product);
+            existing.setOwner(generalUser);
+            existing.setCreatedAt(LocalDateTime.now());
+            existing.setIsActive(true);
+            existing.setAutoFlagged(false);
+            existing.setModerationStatus(ModerationStatus.APPROVED);
+            if (request.getMediaList() != null && !request.getMediaList().isEmpty()) {
+                List<Media> mediaList = request.getMediaList().stream()
+                        .map(mediaDto -> {
+                            Media media = new Media();
+                            media.setImageData(mediaDto.getImageData());
+                            media.setMimeType(mediaDto.getMimeType());
+                            media.setReview(existing);
+                            media.setUploadDate(LocalDateTime.now());
+                            media.setIsActive(true);
+                            return media;
+                        })
+                        .collect(Collectors.toList());
+                existing.setMediaList(mediaList);
+            } else {
+                existing.setMediaList(new ArrayList<>());
+            }
+            Review revived = reviewRepository.save(existing);
+            toxicityService.analyzeAndApplyAsync(revived.getId());
+            try {
+                appNotificationService.onNewReviewOnProduct(revived);
+            } catch (Exception ignored) {
+                // Bildirim hatası review oluşturmayı bozmasın
+            }
+            return toResponseDto(revived, generalUser.getId());
         }
 
         // Review oluştur
@@ -124,8 +164,15 @@ public class ReviewService {
         try {
             saved = reviewRepository.save(review);
         } catch (DataIntegrityViolationException ex) {
-            throw new FavoException(ReviewErrorCode.REVIEW_DUPLICATE_FOR_PRODUCT,
-                    java.util.Map.of("userId", generalUser.getId(), "productId", product.getId()));
+            String root = ex.getMostSpecificCause() != null
+                    ? ex.getMostSpecificCause().getMessage()
+                    : ex.getMessage();
+            String msg = root == null ? "" : root.toLowerCase(Locale.ROOT);
+            if (msg.contains("duplicate") || msg.contains("unique")) {
+                throw new FavoException(ReviewErrorCode.REVIEW_DUPLICATE_FOR_PRODUCT,
+                        java.util.Map.of("userId", generalUser.getId(), "productId", product.getId()));
+            }
+            throw ex;
         }
         toxicityService.analyzeAndApplyAsync(saved.getId());
         try {
