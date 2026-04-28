@@ -21,6 +21,7 @@ import com.favo.backend.Service.User.ProfileImageUrlService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -119,7 +120,13 @@ public class ReviewService {
             review.setMediaList(mediaList);
         }
 
-        Review saved = reviewRepository.save(review);
+        Review saved;
+        try {
+            saved = reviewRepository.save(review);
+        } catch (DataIntegrityViolationException ex) {
+            throw new FavoException(ReviewErrorCode.REVIEW_DUPLICATE_FOR_PRODUCT,
+                    java.util.Map.of("userId", generalUser.getId(), "productId", product.getId()));
+        }
         toxicityService.analyzeAndApplyAsync(saved.getId());
         try {
             appNotificationService.onNewReviewOnProduct(saved);
