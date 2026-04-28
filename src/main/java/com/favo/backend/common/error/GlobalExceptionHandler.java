@@ -5,7 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -96,6 +96,15 @@ public class GlobalExceptionHandler {
         if (log.isDebugEnabled()) {
             log.debug("MethodArgumentTypeMismatchException: {}", ex.getMessage());
         }
+        return responseFrom(UserErrorCode.USER_FIELD_VALIDATION_FAILED);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex) {
+        log.warn("DataIntegrityViolationException: {}", ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage());
         return responseFrom(UserErrorCode.USER_FIELD_VALIDATION_FAILED);
     }
 
