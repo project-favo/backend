@@ -5,6 +5,7 @@ import com.favo.backend.Domain.product.Repository.ProductRepository;
 import com.favo.backend.Domain.review.*;
 import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
+import com.favo.backend.common.error.AuthErrorCode;
 import com.favo.backend.common.error.FavoException;
 import com.favo.backend.common.error.ReviewErrorCode;
 import com.favo.backend.Domain.review.Repository.TopReviewerProjection;
@@ -52,9 +53,13 @@ public class ReviewService {
      * Sadece GeneralUser review oluşturabilir
      */
     public ReviewResponseDto createReview(ReviewRequestDto request, SystemUser user) {
+        if (user == null) {
+            throw new FavoException(AuthErrorCode.AUTH_TOKEN_FIREBASE_INVALID);
+        }
+
         // Kullanıcının GeneralUser olduğunu kontrol et
         if (!(user instanceof GeneralUser)) {
-            throw new RuntimeException("Only GeneralUser can create reviews");
+            throw new FavoException(AuthErrorCode.AUTH_FORBIDDEN_ROLE);
         }
 
         GeneralUser generalUser = (GeneralUser) user;
