@@ -7,7 +7,9 @@ import com.favo.backend.Domain.review.Repository.ReviewFlagRepository;
 import com.favo.backend.Domain.review.Repository.ReviewRepository;
 import com.favo.backend.common.error.AuthErrorCode;
 import com.favo.backend.common.error.FavoException;
+import com.favo.backend.common.error.ProductErrorCode;
 import com.favo.backend.common.error.ReviewErrorCode;
+import com.favo.backend.common.error.UserErrorCode;
 import com.favo.backend.Domain.review.Repository.TopReviewerProjection;
 import com.favo.backend.Domain.user.Repository.FolloweeFollowerCountProjection;
 import com.favo.backend.Domain.user.Repository.UserFollowRepository;
@@ -65,12 +67,16 @@ public class ReviewService {
         GeneralUser generalUser = (GeneralUser) user;
 
         // Product kontrolü
+        if (request == null || request.getProductId() == null) {
+            throw new FavoException(UserErrorCode.USER_FIELD_VALIDATION_FAILED);
+        }
         Product product = productRepository.findByIdAndIsActiveTrue(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + request.getProductId()));
+                .orElseThrow(() -> new FavoException(ProductErrorCode.PRODUCT_NOT_FOUND,
+                        java.util.Map.of("productId", request.getProductId())));
 
         // Rating kontrolü (1-5 arası olmalı)
         if (request.getRating() == null || request.getRating() < 1 || request.getRating() > 5) {
-            throw new RuntimeException("Rating must be between 1 and 5");
+            throw new FavoException(UserErrorCode.USER_FIELD_VALIDATION_FAILED);
         }
 
         // Kullanıcı bu ürüne daha önce yorum yaptıysa engelle
