@@ -114,6 +114,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     /** Kullanıcının bu ürüne aktif yorumu var mı? */
     boolean existsByOwnerIdAndProductIdAndIsActiveTrue(Long ownerId, Long productId);
 
+    /** Kullanıcının aynı üründeki en son yorumu (aktif/pasif fark etmez). */
+    Optional<Review> findTopByOwnerIdAndProductIdOrderByIdDesc(Long ownerId, Long productId);
+
     /** Aynı üründe yorumu olan diğer kullanıcıların id'leri (yeni yorum yazanı hariç). */
     @Query("SELECT DISTINCT r.owner.id FROM Review r WHERE r.product.id = :productId AND r.isActive = true AND r.owner.id <> :excludeOwnerId")
     List<Long> findDistinctOwnerIdsByProductIdExcludingOwner(
