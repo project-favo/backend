@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.favo.backend.Domain.chat.ChatResponse;
 import com.favo.backend.Domain.chat.OpenAiChatTurn;
+import com.favo.backend.Domain.chat.OpenAiIntentResult;
 
 import java.util.ArrayList;
 import lombok.extern.slf4j.Slf4j;
@@ -79,24 +80,106 @@ public class OpenAIChatService {
     private String apiKey;
 
     /**
-     * Sends system prompt + prior turns (oldest first) + the new user message to OpenAI.
+     * JSON instruction appended to the system prompt for the general chat flow.
+     * Instructs the model to return a structured JSON so the backend can extract
+     * the product search query directly from the AI instead of relying on regex heuristics.
      */
-    public ChatResponse completeConversation(String fullSystemPrompt, List<OpenAiChatTurn> priorTurnsOldestFirst, String newUserMessage) {
-        if (apiKey == null || apiKey.isBlank()) {
-            log.error("OpenAI API key is not set. Set OPENAI_API_KEY env or openai.api.key property.");
-            throw new IllegalStateException("CHATBOT_NOT_CONFIGURED");
-        }
+    private static final String JSON_INTENT_INSTRUCTION =
+            "\n\nIMPORTANT: You MUST respond with a valid JSON object containing exactly these fields:\n"
+                    + "{\n"
+                    + "  \"reply\": \"<your conversational response here>\",\n"
+                    + "  \"product_search\": \"<1-3 word English search term if the user wants product recommendations or discovery, otherwise null>\",\n"
+                    + "  \"prefer_high_rated\": <true if user explicitly wants highly rated / best-reviewed products, false otherwise>,\n"
+                    + "  \"use_my_likes\": <true if user explicitly asks for suggestions based on their liked or favorited products, false otherwise>\n"
+                    + "}\n"
+                    + "Rules for product_search:\n"
+                    + "- Use a specific category or product type (e.g. \"smartphone\", \"gaming laptop\", \"running shoes\", \"bluetooth headphone\").\n"
+                    + "- Set to null when the user is asking a general question, greeting, or anything unrelated to discovering products.\n"
+                    + "- Do NOT set product_search just because products are mentioned in personalization context; only set it when the user actively wants recommendations now.\n"
+                    + "- When product_search is non-null, keep reply to 1-2 sentences that align with that product category.";
+
+    /**
+     * Calls OpenAI with JSON-mode structured output to extract both the conversational reply
+     * and the product search intent from the user's message. Falls back to a plain text reply
+     * with no product intent on any parse failure.
+     */
+    public OpenAiIntentResult completeConversationWithIntent(
+            String fullSystemPrompt,
+            List<OpenAiChatTurn> priorTurnsOldestFirst,
+            String newUserMessage) {
+
+        String systemWithJson = fullSystemPrompt + JSON_INTENT_INSTRUCTION;
 
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", MODEL);
+
+        ObjectNode responseFormat = objectMapper.createObjectNode();
+        responseFormat.put("type", "json_object");
+        body.set("response_format", responseFormat);
+
+        ArrayNode messages = buildMessages(systemWithJson, priorTurnsOldestFirst, newUserMessage);
+        body.set("messages", messages);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey.trim());
+
+        try {
+            HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    OPENAI_CHAT_URL, HttpMethod.POST, entity, String.class);
+
+            if (response.getStatusCode() != HttpStatusCode.valueOf(200) || response.getBody() == null) {
+                log.warn("OpenAI intent call non-OK: {}", response.getStatusCode());
+                return fallbackIntentResult(newUserMessage);
+            }
+
+            JsonNode root = objectMapper.readTree(response.getBody());
+            String rawContent = root.path("choices").get(0).path("message").path("content").asText("");
+            JsonNode parsed = objectMapper.readTree(rawContent);
+
+            String reply = parsed.path("reply").asText("").trim();
+            if (reply.isEmpty()) {
+                reply = rawContent;
+            }
+
+            JsonNode psNode = parsed.path("product_search");
+            String productSearch = (psNode.isNull() || psNode.isMissingNode()) ? null : psNode.asText("").trim();
+            if (productSearch != null && productSearch.isEmpty()) {
+                productSearch = null;
+            }
+
+            boolean preferHighRated = parsed.path("prefer_high_rated").asBoolean(false);
+            boolean useMyLikes = parsed.path("use_my_likes").asBoolean(false);
+
+            return new OpenAiIntentResult(reply, productSearch, preferHighRated, useMyLikes);
+
+        } catch (Exception e) {
+            log.warn("Failed to parse OpenAI intent response, falling back to plain call: {}", e.getMessage());
+            return fallbackIntentResult(newUserMessage);
+        }
+    }
+
+    private OpenAiIntentResult fallbackIntentResult(String userMessage) {
+        try {
+            ChatResponse plain = completeConversation(
+                    BASE_SYSTEM_PROMPT, List.of(), userMessage);
+            return new OpenAiIntentResult(plain.getReply(), null, false, false);
+        } catch (Exception ex) {
+            log.error("Fallback plain call also failed", ex);
+            return new OpenAiIntentResult("Sorry, I'm having trouble right now. Please try again.", null, false, false);
+        }
+    }
+
+    private ArrayNode buildMessages(String systemPrompt, List<OpenAiChatTurn> priorTurns, String newUserMessage) {
         ArrayNode messages = objectMapper.createArrayNode();
 
         ObjectNode systemMsg = objectMapper.createObjectNode();
         systemMsg.put("role", "system");
-        systemMsg.put("content", fullSystemPrompt);
+        systemMsg.put("content", systemPrompt);
         messages.add(systemMsg);
 
-        for (OpenAiChatTurn turn : priorTurnsOldestFirst) {
+        for (OpenAiChatTurn turn : priorTurns) {
             ObjectNode node = objectMapper.createObjectNode();
             node.put("role", turn.role());
             node.put("content", turn.content());
@@ -108,7 +191,21 @@ public class OpenAIChatService {
         userMsg.put("content", newUserMessage);
         messages.add(userMsg);
 
-        body.set("messages", messages);
+        return messages;
+    }
+
+    /**
+     * Sends system prompt + prior turns (oldest first) + the new user message to OpenAI.
+     */
+    public ChatResponse completeConversation(String fullSystemPrompt, List<OpenAiChatTurn> priorTurnsOldestFirst, String newUserMessage) {
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("OpenAI API key is not set. Set OPENAI_API_KEY env or openai.api.key property.");
+            throw new IllegalStateException("CHATBOT_NOT_CONFIGURED");
+        }
+
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", MODEL);
+        body.set("messages", buildMessages(fullSystemPrompt, priorTurnsOldestFirst, newUserMessage));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
