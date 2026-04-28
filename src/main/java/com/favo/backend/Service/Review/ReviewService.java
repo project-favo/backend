@@ -216,7 +216,10 @@ public class ReviewService {
      */
     public ReviewResponseDto getReviewById(Long id, Long currentUserId) {
         Review review = reviewRepository.findByIdWithRelations(id)
-                .orElseThrow(() -> new RuntimeException("Review not found with id: " + id));
+                .orElseThrow(() -> new FavoException(ReviewErrorCode.REVIEW_NOT_FOUND));
+        if (!Boolean.TRUE.equals(review.getIsActive())) {
+            throw new FavoException(ReviewErrorCode.REVIEW_NOT_FOUND);
+        }
         return toResponseDto(review, currentUserId);
     }
 
