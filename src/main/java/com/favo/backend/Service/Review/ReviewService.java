@@ -78,6 +78,9 @@ public class ReviewService {
         if (request.getRating() == null || request.getRating() < 1 || request.getRating() > 5) {
             throw new FavoException(UserErrorCode.USER_FIELD_VALIDATION_FAILED);
         }
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new FavoException(ReviewErrorCode.REVIEW_CONTENT_EMPTY);
+        }
 
         // Kullanıcı bu ürüne daha önce yorum yaptıysa engelle
         if (reviewRepository.existsByOwnerIdAndProductIdAndIsActiveTrue(
@@ -96,6 +99,9 @@ public class ReviewService {
         review.setOwner(generalUser);
         review.setCreatedAt(LocalDateTime.now());
         review.setIsActive(true);
+        review.setAutoFlagged(false);
+        // Revert edilen şemalarda PENDING enum uyumsuzluğu olabildiği için create'te güvenli default.
+        review.setModerationStatus(ModerationStatus.APPROVED);
 
         // Media dosyalarını ekle
         if (request.getMediaList() != null && !request.getMediaList().isEmpty()) {
