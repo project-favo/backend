@@ -26,5 +26,7 @@ public class ReviewResponseDto {
     private Boolean isLikedByCurrentUser; // Mevcut kullanıcı bu review'ı beğenmiş mi?
     private Double toxicityScore;
     private ModerationStatus moderationStatus;
+    /** false → yorum pasif (soft-delete / admin suspend); Flutter bu alanı isReviewInactive için okur. */
+    private Boolean isActive;
 }
 

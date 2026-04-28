@@ -51,7 +51,8 @@ public class ReviewMapper {
                 likeCount,
                 isLikedByCurrentUser,
                 review.getToxicityScore(),
-                review.getModerationStatus()
+                review.getModerationStatus(),
+                review.getIsActive()
         );
     }
 
