@@ -183,28 +183,6 @@ public class AppNotificationService {
         pushNotificationService.notifyInAppEvent(recipient.getId(), type, title, body);
     }
 
-    /**
-     * Admin bir yorumu devre dışı bıraktığında yorum sahibine anlık STOMP sinyali gönderir.
-     * Veritabanına bildirim kaydı açılmaz; yalnızca ürün sayfasının kendini yenilemesi için sinyal.
-     */
-    public void pushReviewDeactivatedEvent(Long ownerId, Long reviewId, Long productId) {
-        String payloadJson = String.format("{\"reviewId\":%d,\"productId\":%d}", reviewId, productId);
-        InAppNotificationDto event = new InAppNotificationDto(
-                null,
-                InAppNotificationType.REVIEW_DEACTIVATED,
-                null,
-                "Yorumun kaldırıldı",
-                null,
-                payloadJson,
-                null,
-                null,
-                null,
-                null
-        );
-        long unread = unreadCount(ownerId);
-        pushToUser(ownerId, new NotificationPushDto(unread, event));
-    }
-
     private void pushToUser(long userId, NotificationPushDto payload) {
         try {
             messagingTemplate.convertAndSendToUser(String.valueOf(userId), "/queue/notifications", payload);

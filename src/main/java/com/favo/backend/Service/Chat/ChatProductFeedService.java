@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@lombok.extern.slf4j.Slf4j
 public class ChatProductFeedService {
 
     private static final int FEED_SIZE = 8;
@@ -850,7 +849,6 @@ public class ChatProductFeedService {
         }
 
         // Shuffle so each request surfaces a different slice of the diverse pool.
-        log.info("[FEED] buildFromLikedTags: preferredTags={} candidatePool={}", preferredTagIds.size(), candidateIds.size());
         Collections.shuffle(candidateIds);
 
         List<Product> products = loadProductsPreservingOrder(candidateIds);
@@ -914,7 +912,6 @@ public class ChatProductFeedService {
         }
         // Return ALL liked tag categories sorted by frequency (no minimum threshold).
         // Even a single like in a new category earns a slot so variety improves over time.
-        log.info("[FEED] Preferred tag IDs from likes for user (total liked categories={}): {}", tagFreq.size(), tagFreq);
         return tagFreq.entrySet().stream()
                 .sorted(Map.Entry.<Long, Integer>comparingByValue().reversed())
                 .map(Map.Entry::getKey)
