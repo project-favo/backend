@@ -155,8 +155,50 @@ public class ChatProductFeedService {
     private static final Set<String> LEADING_ARTICLE_WORDS = Set.of("a", "an", "the");
     private static final Set<String> TRAILING_NOISE_WORDS = Set.of("please", "thanks", "thank", "plz", "thx");
     private static final Set<String> GREETING_ONLY_WORDS = Set.of(
-            "hi", "hello", "hey", "selam", "merhaba", "slm", "sa", "yo"
+            "hi", "hello", "hey", "selam", "merhaba", "slm", "sa", "yo",
+            "thanks", "thx", "bye", "goodbye"
     );
+
+    /**
+     * Çok kelimeli tam mesaj eşleşmesi: "how are you", "good morning" vb.
+     */
+    private static final Pattern SMALL_TALK_ONLY_MESSAGE = Pattern.compile(
+            "^(how\\s+are\\s+you(\\s+today)?|how('?s|\\s+is)\\s+it\\s+going|what'?s\\s+up|sup\\s*$|"
+                    + "good\\s+(morning|afternoon|evening|night)|"
+                    + "(hey|hi|hello|selam|merhaba)\\s+there\\s*$|"
+                    + "thank\\s+you\\s*$|thanks\\s*$|thx\\s*$|"
+                    + "teşekkürler?\\s*$|tesekkürler?\\s*$|"
+                    + "nasılsın\\s*$|nasilsin\\s*$|merhaba\\s+nasılsın\\s*$|merhaba\\s+nasilsin\\s*$|"
+                    + "ne\\s+yapıyorsun\\s*$|napıyorsun\\s*$|"
+                    + "see\\s+you|goodbye\\s*$|bye\\s*$)\\s*$",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    /**
+     * Selamlama veya nezaket küçük sohbeti — ürün carousel'i gösterilmez (model bazen yine de JSON'da arama döndürüyordu).
+     * Açık ürün önerisi / arama niyeti varsa false döner.
+     */
+    public static boolean shouldOmitProductCarousel(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) {
+            return true;
+        }
+        String trimmed = userMessage.trim();
+        if (wantsProductFeed(trimmed) || wantsLikesBasedRecommendation(trimmed)) {
+            return false;
+        }
+        return isGreetingOrSmallTalkOnly(trimmed);
+    }
+
+    private static boolean isGreetingOrSmallTalkOnly(String message) {
+        if (isGreetingOnly(message)) {
+            return true;
+        }
+        String compact = message.trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[.!?,;:…]+$", "")
+                .trim()
+                .replaceAll("\\s+", " ");
+        return SMALL_TALK_ONLY_MESSAGE.matcher(compact).matches();
+    }
 
     /**
      * Tek başına arama sorgusu olarak çok geniş (ör. "suggest me men" → sadece "men" bir sonraki

@@ -44,6 +44,12 @@ public class PersonalizedChatService {
     private static final int MAX_PRIOR_TURNS_FOR_FEED_CONTEXT = 12;
     private static final int MAX_FEED_RETRIEVAL_CHARS = 4000;
 
+    /** Selamlama / küçük sohbet: JSON intent yerine düz yanıt; ürün carousel'i yok. */
+    private static final String SMALLTALK_REPLY_DIRECTIVE =
+            "\n\nThe user's latest message is ONLY a greeting or casual small talk — they did NOT ask for product "
+                    + "recommendations or discovery. Reply briefly and warmly; do NOT recommend products, categories, "
+                    + "wishlists, liked-item picks, or similar items.";
+
     private final UserService userService;
     private final ProductInteractionRepository productInteractionRepository;
     private final UserFollowRepository userFollowRepository;
@@ -63,6 +69,16 @@ public class PersonalizedChatService {
         String fullSystem = OpenAIChatService.BASE_SYSTEM_PROMPT
                 + "\n\n--- Personalized context (background; prioritize this chat thread over unrelated wishlist items) ---\n"
                 + personalizationBlock;
+
+        if (ChatProductFeedService.shouldOmitProductCarousel(userMessage)) {
+            ChatResponse plain = openAIChatService.completeConversation(
+                    fullSystem + SMALLTALK_REPLY_DIRECTIVE,
+                    priorTurns,
+                    userMessage);
+            persistMessage(user, AiChatRole.USER, userMessage);
+            persistMessage(user, AiChatRole.ASSISTANT, plain.getReply());
+            return new ChatResponse(plain.getReply(), List.of());
+        }
 
         // Primary path: ask OpenAI to return structured JSON with a product search query.
         // This lets the AI drive product retrieval with semantic understanding instead of regex.
