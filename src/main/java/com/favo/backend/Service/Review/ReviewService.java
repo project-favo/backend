@@ -185,10 +185,15 @@ public class ReviewService {
 
     public FlagResponseDto flagReview(Long reviewId, GeneralUser user, FlagRequestDto request) {
         Review review = reviewRepository.findByIdAndIsActiveTrue(reviewId)
-                .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
+                .orElseThrow(() -> new FavoException(ReviewErrorCode.REVIEW_NOT_FOUND));
+
+        if (request == null || request.getReason() == null) {
+            throw new FavoException(UserErrorCode.USER_FIELD_VALIDATION_FAILED);
+        }
 
         if (reviewFlagRepository.existsByReviewIdAndReportedByIdAndIsActiveTrue(reviewId, user.getId())) {
-            throw new RuntimeException("You have already flagged this review");
+            throw new FavoException(ReviewErrorCode.REVIEW_REPORT_ALREADY_SUBMITTED,
+                    java.util.Map.of("reviewId", reviewId, "userId", user.getId()));
         }
 
         review.setModerationStatus(ModerationStatus.MANUALLY_FLAGGED);
@@ -201,7 +206,18 @@ public class ReviewService {
         flag.setCreatedAt(LocalDateTime.now());
         flag.setIsActive(true);
 
-        ReviewFlag saved = reviewFlagRepository.save(flag);
+        ReviewFlag saved;
+        try {
+            saved = reviewFlagRepository.save(flag);
+        } catch (DataIntegrityViolationException ex) {
+            String root = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+            String msg = root == null ? "" : root.toLowerCase(Locale.ROOT);
+            if (msg.contains("duplicate") || msg.contains("unique")) {
+                throw new FavoException(ReviewErrorCode.REVIEW_REPORT_ALREADY_SUBMITTED,
+                        java.util.Map.of("reviewId", reviewId, "userId", user.getId()));
+            }
+            throw ex;
+        }
         return new FlagResponseDto(
                 saved.getId(),
                 reviewId,
